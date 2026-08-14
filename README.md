@@ -12,7 +12,7 @@ Relationships are treated as first-class citizens. The system is built around a 
 
 Full documentation is built with MkDocs and available via GitHub Pages.
 
-You can find it `https://BurningIceCube.github.io/Burble/`.
+You can find it live on [Burble Docs](https://BurningIceCube.github.io/Burble/).
 
 **Local docs commands:**
 
@@ -112,4 +112,3 @@ Each module exposes a verification endpoint:
 ## License
 
 [MIT](LICENSE)
-```
