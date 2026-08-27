@@ -1,4 +1,4 @@
-package com.bic.burble.ontology.dto;
+package com.bic.burble.ontology.domain.world;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

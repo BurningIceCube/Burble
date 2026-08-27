@@ -1,8 +1,8 @@
 package com.bic.burble.ontology.controller;
 
-import com.bic.burble.ontology.dto.CreateWorldRequest;
-import com.bic.burble.ontology.dto.CreateWorldResponse;
-import com.bic.burble.ontology.dto.WorldRecord;
+import com.bic.burble.ontology.domain.world.CreateWorldRequest;
+import com.bic.burble.ontology.domain.world.CreateWorldResponse;
+import com.bic.burble.ontology.domain.world.WorldRecord;
 import com.bic.burble.ontology.service.WorldService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

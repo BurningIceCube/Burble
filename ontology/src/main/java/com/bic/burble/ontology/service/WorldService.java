@@ -1,7 +1,7 @@
 package com.bic.burble.ontology.service;
 
-import com.bic.burble.ontology.dto.CreateWorldRequest;
-import com.bic.burble.ontology.dto.WorldRecord;
+import com.bic.burble.ontology.domain.world.CreateWorldRequest;
+import com.bic.burble.ontology.domain.world.WorldRecord;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
