@@ -8,6 +8,11 @@ spring:
     hibernate:
       ddl-auto: update
 
+burble:
+  ontology:
+    persistance:
+      world: h2
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

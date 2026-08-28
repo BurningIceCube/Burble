@@ -2,25 +2,34 @@ package com.bic.burble.ontology.service;
 
 import com.bic.burble.ontology.domain.world.CreateWorldRequest;
 import com.bic.burble.ontology.domain.world.WorldRecord;
+import com.bic.burble.ontology.persistence.WorldRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
+/**
+ * Services for CRUD on World entities, backed by whichever
+ * {@link WorldRepository} implementation is active (e.g. the H2-backed
+ * adapter enabled via {@code burble.ontology.persistance.world=h2}).
+ */
 @Service
 public class WorldService {
 
-    /**
-     * Services for CRUD on World entities.
-     */
-    private final Map<String, WorldRecord> worlds = new ConcurrentHashMap<>();
+    private final WorldRepository worldRepository;
+
+    public WorldService(WorldRepository worldRepository) {
+        this.worldRepository = worldRepository;
+    }
 
     public Optional<WorldRecord> getWorld(String worldId) {
-        return Optional.ofNullable(worlds.get(worldId));
+        return worldRepository.findById(worldId);
     }
 
     public List<WorldRecord> getAllWorlds() {
-        return new ArrayList<>(worlds.values());
+        return worldRepository.findAll();
     }
 
     public String createWorld(CreateWorldRequest request) {
@@ -30,7 +39,7 @@ public class WorldService {
         String description = request != null ? request.description() : null;
         String owner = "system";
 
-        WorldRecord saved = new WorldRecord(
+        WorldRecord world = new WorldRecord(
                 guid,
                 name,
                 description,
@@ -38,12 +47,12 @@ public class WorldService {
                 now,
                 now
         );
-        worlds.put(guid, saved);
+        worldRepository.save(world);
         return guid;
     }
 
     public boolean deleteWorld(String worldId) {
-        return worlds.remove(worldId) != null;
+        return worldRepository.deleteById(worldId);
     }
 }
 
