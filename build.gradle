@@ -47,6 +47,6 @@ subprojects {
 
 tasks.register('bootRun') {
     group = 'application'
-    description = 'Runs the Spring Boot application from the app module.'
-    dependsOn ':app:bootRun'
+    description = 'Runs the Spring Boot application from the orchestrator module.'
+    dependsOn ':orchestrator:bootRun'
 }

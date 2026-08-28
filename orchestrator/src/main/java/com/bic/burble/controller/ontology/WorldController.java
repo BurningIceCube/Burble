@@ -1,4 +1,4 @@
-package com.bic.burble.ontology.controller;
+package com.bic.burble.controller.ontology;
 
 import com.bic.burble.ontology.domain.world.CreateWorldRequest;
 import com.bic.burble.ontology.domain.world.CreateWorldResponse;
@@ -16,6 +16,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST endpoints for world management, backed by the {@code ontology}
+ * module's {@link WorldService}. Orchestrator hosts all API endpoints;
+ * ontology remains the library providing the underlying domain logic.
+ */
 @Tag(name = "World Management", description = "Endpoints for creating, reading, and deleting world records")
 @RestController
 @RequestMapping("/api/v1/ontology/world")
@@ -74,4 +79,3 @@ public class WorldController {
         return ResponseEntity.notFound().build();
     }
 }
-
