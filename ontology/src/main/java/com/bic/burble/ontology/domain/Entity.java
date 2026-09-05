@@ -8,6 +8,7 @@ import java.util.Set;
 
 public record Entity(
     String guid,
+    String worldId,
     String name,
     List<String> aliases,
     String description,

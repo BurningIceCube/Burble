@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +28,8 @@ import java.util.List;
 @RequestMapping("/api/v1/ontology/world")
 public class WorldController {
 
+    private static final Logger log = LoggerFactory.getLogger(WorldController.class);
+
     private final WorldService worldService;
 
     public WorldController(WorldService worldService) {
@@ -36,7 +40,10 @@ public class WorldController {
     @ApiResponse(responseCode = "200", description = "Successfully retrieved list of worlds")
     @GetMapping
     public List<WorldRecord> getAllWorlds() {
-        return worldService.getAllWorlds();
+        log.info("GET  /api/v1/ontology/world - listing worlds");
+        List<WorldRecord> worlds = worldService.getAllWorlds();
+        log.debug("Found {} world(s)", worlds.size());
+        return worlds;
     }
 
     @Operation(summary = "Get a world by ID", description = "Retrieves the full world record for a given world ID.")
@@ -48,9 +55,16 @@ public class WorldController {
     public ResponseEntity<WorldRecord> getWorld(
             @Parameter(name = "worldId", description = "Unique GUID of the world", example = "3fa85f64-5717-4562-b3fc-2c963f66afa6", required = true)
             @PathVariable("worldId") String worldId) {
+        log.info("GET  /api/v1/ontology/world/{} - fetching world", worldId);
         return worldService.getWorld(worldId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .map(world -> {
+                    log.debug("World found: {}", world);
+                    return ResponseEntity.ok(world);
+                })
+                .orElseGet(() -> {
+                    log.debug("No world found for worldId={}", worldId);
+                    return ResponseEntity.notFound().build();
+                });
     }
 
     @Operation(summary = "Create a new world", description = "Creates a new world entity and returns its generated GUID.")
@@ -60,7 +74,10 @@ public class WorldController {
     })
     @PostMapping
     public ResponseEntity<CreateWorldResponse> createWorld(@Valid @RequestBody(required = false) CreateWorldRequest request) {
+        log.info("POST /api/v1/ontology/world - creating world");
+        log.debug("CreateWorldRequest payload: {}", request);
         String id = worldService.createWorld(request);
+        log.info("World created with id={}", id);
         return ResponseEntity.status(HttpStatus.CREATED).body(new CreateWorldResponse(id));
     }
 
@@ -73,9 +90,12 @@ public class WorldController {
     public ResponseEntity<Void> deleteWorld(
             @Parameter(name = "worldId", description = "Unique GUID of the world to delete", example = "3fa85f64-5717-4562-b3fc-2c963f66afa6", required = true)
             @PathVariable("worldId") String worldId) {
+        log.info("DELETE /api/v1/ontology/world/{} - deleting world", worldId);
         if (worldService.deleteWorld(worldId)) {
+            log.info("World deleted: worldId={}", worldId);
             return ResponseEntity.noContent().build();
         }
+        log.debug("Delete failed, no world found for worldId={}", worldId);
         return ResponseEntity.notFound().build();
     }
 }

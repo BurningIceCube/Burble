@@ -12,6 +12,7 @@ burble:
   ontology:
     persistance:
       world: h2
+      entity: neo4j
 
 springdoc:
   swagger-ui:
@@ -26,4 +27,10 @@ management:
     health:
       show-details: when-authorized
 
+logging:
+  level:
+    root: INFO
+    com.bic.burble: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
 

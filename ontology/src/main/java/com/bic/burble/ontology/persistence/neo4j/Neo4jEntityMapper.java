@@ -11,7 +11,6 @@ public interface Neo4jEntityMapper {
     // Archetypes are handled separately by the adapter, since they require
     // building/reading related archetype nodes linked via IS_A.
     @Mapping(target = "id", source = "guid")
-    @Mapping(target = "worldId", ignore = true)
     @Mapping(target = "archetypes", ignore = true)
     EntityNode toNode(Entity entity);
 
