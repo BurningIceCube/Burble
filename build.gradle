@@ -34,14 +34,22 @@ subprojects {
         options.compilerArgs.add('-parameters')
     }
 
+    configurations {
+        mockitoAgent
+    }
+
     dependencies {
         implementation 'org.projectlombok:lombok:1.18.46'
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        mockitoAgent('org.mockito:mockito-core') {
+            transitive = false
+        }
     }
 
     test {
         useJUnitPlatform()
+        jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
     }
 }
 
