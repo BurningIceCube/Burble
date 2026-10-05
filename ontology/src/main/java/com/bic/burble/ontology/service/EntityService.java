@@ -1,6 +1,7 @@
 package com.bic.burble.ontology.service;
 
 import com.bic.burble.ontology.domain.Entity;
+import com.bic.burble.ontology.domain.Relationship;
 import com.bic.burble.ontology.domain.entity.CreateEntityRequest;
 
 import java.util.List;
@@ -58,5 +59,23 @@ public interface EntityService {
      * @return the updated entity, or {@link Optional#empty()} if no entity with that ID exists
      */
     Optional<Entity> updateEntity(String worldId, String entityId, CreateEntityRequest request);
+
+    /**
+     * Stores one relationship on the subject entity. The object entity is not
+     * modified, so the inverse is a query via {@link #findByRelationship}.
+     *
+     * @return empty when either entity is missing or they are not in {@code worldId}
+     */
+    Optional<Relationship> addRelationship(String worldId, String subjectId, String verb, String objectId);
+
+    /**
+     * Relationship statements stored on the subject. Does not include {@code IS_A}.
+     */
+    List<Relationship> findRelationships(String subjectId);
+
+    /**
+     * Entities that store {@code verb} pointing at {@code objectId}.
+     */
+    List<Entity> findByRelationship(String verb, String objectId);
 }
 

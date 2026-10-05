@@ -1,7 +1,7 @@
 package com.bic.burble.ontology.persistence.json;
 
 import com.bic.burble.ontology.domain.facet.ArchetypeFacet;
-import com.bic.burble.ontology.domain.facet.CharacterFacet;
+import com.bic.burble.ontology.domain.facet.ArchetypeFacets;
 import com.bic.burble.ontology.domain.facet.ItemFacet;
 
 import java.util.ArrayList;
@@ -18,7 +18,6 @@ final class FacetStatements {
 
     static final String IS_A = "IS_A";
     static final String ITEM = "Item";
-    static final String CHARACTER = "Character";
 
     private FacetStatements() {
     }
@@ -28,23 +27,15 @@ final class FacetStatements {
         if (facets == null || facets.isEmpty()) {
             return statements;
         }
-        ItemFacet item = null;
-        boolean character = false;
         for (ArchetypeFacet facet : facets) {
-            if (facet instanceof ItemFacet itemFacet) {
-                item = itemFacet;
-            } else if (facet instanceof CharacterFacet) {
-                character = true;
+            if (facet instanceof ItemFacet item) {
+                statements.add(new StoredStatement(IS_A, ITEM, Map.of(
+                        "portable", item.portable(),
+                        "unique", item.unique()
+                )));
+            } else {
+                statements.add(new StoredStatement(IS_A, ArchetypeFacets.nameOf(facet), Map.of()));
             }
-        }
-        if (item != null) {
-            statements.add(new StoredStatement(IS_A, ITEM, Map.of(
-                    "portable", item.portable(),
-                    "unique", item.unique()
-            )));
-        }
-        if (character) {
-            statements.add(new StoredStatement(IS_A, CHARACTER, Map.of()));
         }
         return statements;
     }
@@ -54,25 +45,18 @@ final class FacetStatements {
             return Set.of();
         }
         Set<ArchetypeFacet> facets = new HashSet<>();
-        ItemFacet item = null;
-        boolean character = false;
         for (StoredStatement statement : statements) {
-            if (statement == null || !IS_A.equals(statement.verb())) {
+            if (statement == null || !IS_A.equals(statement.verb()) || statement.object() == null) {
                 continue;
             }
-            if (ITEM.equals(statement.object())) {
-                item = new ItemFacet(
-                        bool(statement.properties(), "portable"),
-                        bool(statement.properties(), "unique"));
-            } else if (CHARACTER.equals(statement.object())) {
-                character = true;
+            ArchetypeFacet facet = ITEM.equals(statement.object())
+                    ? new ItemFacet(
+                            bool(statement.properties(), "portable"),
+                            bool(statement.properties(), "unique"))
+                    : ArchetypeFacets.of(statement.object(), null, null);
+            if (facet != null) {
+                facets.add(facet);
             }
-        }
-        if (item != null) {
-            facets.add(item);
-        }
-        if (character) {
-            facets.add(new CharacterFacet());
         }
         return facets;
     }
