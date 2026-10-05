@@ -34,19 +34,27 @@ subprojects {
         options.compilerArgs.add('-parameters')
     }
 
+    configurations {
+        mockitoAgent
+    }
+
     dependencies {
         implementation 'org.projectlombok:lombok:1.18.46'
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
         testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        mockitoAgent('org.mockito:mockito-core') {
+            transitive = false
+        }
     }
 
     test {
         useJUnitPlatform()
+        jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
     }
 }
 
 tasks.register('bootRun') {
     group = 'application'
-    description = 'Runs the Spring Boot application from the app module.'
-    dependsOn ':app:bootRun'
+    description = 'Runs the Spring Boot application from the orchestrator module.'
+    dependsOn ':orchestrator:bootRun'
 }

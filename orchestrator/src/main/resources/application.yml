@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: burble
+  datasource:
+    url: jdbc:h2:mem:burble;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+# world: json | h2. entity: json | neo4j.
+# json stores worlds and entities in one file. Archetypes are IS_A statements on the entity.
+burble:
+  ontology:
+    persistance:
+      world: json
+      entity: json
+      json:
+        path: data/ontology.json
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    root: INFO
+    com.bic.burble: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
+
+---
+spring:
+  config:
+    activate:
+      on-property:
+        name: burble.ontology.persistance.entity
+        having-value: json
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.neo4j.autoconfigure.Neo4jAutoConfiguration
+      - org.springframework.boot.neo4j.autoconfigure.health.Neo4jHealthContributorAutoConfiguration
+      - org.springframework.boot.neo4j.autoconfigure.observation.Neo4jObservationAutoConfiguration
+      - org.springframework.boot.data.neo4j.autoconfigure.DataNeo4jAutoConfiguration
+      - org.springframework.boot.data.neo4j.autoconfigure.DataNeo4jRepositoriesAutoConfiguration
+      - org.springframework.boot.data.neo4j.autoconfigure.DataNeo4jReactiveAutoConfiguration
+      - org.springframework.boot.data.neo4j.autoconfigure.DataNeo4jReactiveRepositoriesAutoConfiguration

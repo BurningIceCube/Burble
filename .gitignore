@@ -28,3 +28,6 @@ replay_pid*
 __pycache__/
 *.pyc
 site/
+
+# Runtime JSON ontology store
+data/
