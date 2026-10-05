@@ -104,18 +104,36 @@ docker compose down
 
 Add `-v` to also remove the Neo4j data volume (`docker compose down -v`).
 
-### Option B: Local Gradle + Docker Neo4j
+### Option B: Local Gradle
 
-If you'd rather run the app directly with Gradle (e.g. for faster iteration / debugging), you can run just Neo4j via Docker and the app locally.
+If you'd rather run the app directly with Gradle (e.g. for faster iteration / debugging), run it locally. The default JSON storage needs no database.
 
 **Prerequisites:**
 
 - Java 21+ installed (JDK 21 LTS or newer recommended)
-- Docker (or a local Neo4j installation) — required for entity persistence, see [Neo4j](#neo4j-entity-persistence) below
+- Docker, only if entity storage is switched to Neo4j (see [Neo4j](#neo4j-optional-entity-persistence) below)
 
-#### Neo4j (entity persistence)
+#### Storage
 
-World records are stored in an embedded H2 database (no setup required), but **Entity** records are stored in Neo4j. You need a Neo4j instance running before entity endpoints will work.
+Ontology storage is chosen in `orchestrator/src/main/resources/application.yml`:
+
+```yaml
+burble:
+  ontology:
+    persistance:
+      world: json   # json | h2
+      entity: json  # json | neo4j
+      json:
+        path: data/ontology.json
+```
+
+`json` is the default for both. Worlds and entities are written to that one file (path is relative to the process working directory). An entity is a single record. Each archetype is an `IS_A` statement on the entity, so one sword can be an Item and a Character at the same time. The file is reread on startup, so records survive a restart. No database is required.
+
+Set `world: h2` to use the embedded H2 database for worlds, and `entity: neo4j` to use Neo4j for entities. Neo4j is only required when entity storage is `neo4j`.
+
+#### Neo4j (optional entity persistence)
+
+When `burble.ontology.persistance.entity` is `neo4j`, entity records are stored in Neo4j. You need a Neo4j instance running before those entity endpoints will work.
 
 The quickest way to get one running locally is via Docker, with authentication disabled to match the app's default (no-auth) configuration:
 
@@ -167,8 +185,8 @@ Only the `orchestrator` module exposes endpoints. The other modules are librarie
 
 Notable ontology endpoints:
 
-- `/api/v1/ontology/world` — CRUD for World records (H2-backed)
-- `/api/v1/ontology/world/{worldId}/entity` — CRUD for Entity records within a world (Neo4j-backed, requires a running Neo4j instance, see above)
+- `/api/v1/ontology/world` — CRUD for World records
+- `/api/v1/ontology/world/{worldId}/entity` — CRUD for Entity records within a world (archetypes are stored as `IS_A` statements)
 
 See the full list via Swagger UI.
 
