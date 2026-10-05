@@ -1,6 +1,7 @@
 package com.bic.burble.ontology.config;
 
 import org.neo4j.driver.Driver;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.neo4j.core.DatabaseSelectionProvider;
@@ -25,8 +26,12 @@ import org.springframework.data.neo4j.repository.config.EnableNeo4jRepositories;
  * this bean explicitly (and wiring it into {@code @EnableNeo4jRepositories})
  * ensures Neo4j operations always have a dedicated transaction manager,
  * independent of what other stores are configured in the module.
+ *
+ * <p>Only active when {@code burble.ontology.persistance.entity=neo4j}.
+ * JSON entity storage does not start Neo4j.
  */
 @Configuration
+@ConditionalOnProperty(prefix = "burble.ontology.persistance", name = "entity", havingValue = "neo4j")
 @EnableNeo4jRepositories(
         basePackages = "com.bic.burble.ontology.persistence.neo4j",
         transactionManagerRef = "neo4jTransactionManager")
