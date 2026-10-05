@@ -1,6 +1,7 @@
 package com.bic.burble.ontology.persistence.json;
 
 import com.bic.burble.ontology.domain.Entity;
+import com.bic.burble.ontology.domain.Relationship;
 import com.bic.burble.ontology.persistence.EntityRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -68,6 +70,63 @@ public class JsonEntityRepositoryAdapter implements EntityRepository {
     public Entity update(Entity entity) {
         log.debug("[JSON] update() entity guid={}", entity.guid());
         return save(entity);
+    }
+
+
+    @Override
+    public Optional<Relationship> addRelationship(String subjectId, String verb, String objectId) {
+        log.debug("[JSON] addRelationship() subject={} verb={} object={}", subjectId, verb, objectId);
+        if (subjectId == null || verb == null || verb.isBlank() || objectId == null || objectId.isBlank()) {
+            return Optional.empty();
+        }
+        return store.update(graph -> {
+            Optional<StoredEntity> found = findStored(graph, subjectId);
+            if (found.isEmpty()) {
+                return Optional.<Relationship>empty();
+            }
+            StoredEntity subject = found.get();
+            List<StoredStatement> statements = new ArrayList<>(subject.statements());
+            boolean alreadyStored = statements.stream()
+                    .anyMatch(statement -> verb.equals(statement.verb()) && objectId.equals(statement.object()));
+            if (!alreadyStored) {
+                statements.add(new StoredStatement(verb, objectId, Map.of()));
+            }
+            StoredEntity updated = new StoredEntity(
+                    subject.guid(),
+                    subject.worldId(),
+                    subject.name(),
+                    subject.aliases(),
+                    subject.description(),
+                    statements
+            );
+            graph.entities().removeIf(entity -> subjectId.equals(entity.guid()));
+            graph.entities().add(updated);
+            return Optional.of(new Relationship(verb, objectId));
+        });
+    }
+
+    @Override
+    public List<Relationship> findRelationships(String subjectId) {
+        log.debug("[JSON] findRelationships() subject={}", subjectId);
+        return findStored(store.load(), subjectId)
+                .map(entity -> entity.statements().stream()
+                        .filter(statement -> statement != null && !FacetStatements.IS_A.equals(statement.verb()))
+                        .map(statement -> new Relationship(statement.verb(), statement.object()))
+                        .toList())
+                .orElse(List.of());
+    }
+
+    @Override
+    public List<Entity> findByRelationship(String verb, String objectId) {
+        log.debug("[JSON] findByRelationship() verb={} object={}", verb, objectId);
+        if (verb == null || objectId == null) {
+            return List.of();
+        }
+        return store.load().entities().stream()
+                .filter(entity -> entity.statements().stream()
+                        .anyMatch(statement -> verb.equals(statement.verb()) && objectId.equals(statement.object())))
+                .map(this::toDomain)
+                .toList();
     }
 
     private static Optional<StoredEntity> findStored(OntologyGraph graph, String id) {
