@@ -1,8 +1,10 @@
 package com.bic.burble.ontology.service.impl;
 
 import com.bic.burble.ontology.domain.Entity;
+import com.bic.burble.ontology.domain.Relationship;
 import com.bic.burble.ontology.domain.entity.CreateEntityRequest;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacet;
+import com.bic.burble.ontology.domain.facet.ArchetypeFacets;
 import com.bic.burble.ontology.domain.facet.CharacterFacet;
 import com.bic.burble.ontology.domain.facet.ItemFacet;
 import com.bic.burble.ontology.persistence.EntityRepository;
@@ -106,7 +108,56 @@ public class DefaultEntityService implements EntityService {
         if (request.item() != null) {
             facets.add(new ItemFacet(request.item().portable(), request.item().unique()));
         }
+        if (request.archetypes() != null) {
+            for (String name : request.archetypes()) {
+                if (name == null || name.isBlank()) {
+                    continue;
+                }
+                if ("Item".equals(name)) {
+                    if (request.item() == null) {
+                        facets.add(new ItemFacet(false, false));
+                    }
+                    continue;
+                }
+                ArchetypeFacet facet = ArchetypeFacets.of(name, null, null);
+                if (facet == null) {
+                    throw new IllegalArgumentException("Unknown archetype: " + name);
+                }
+                facets.add(facet);
+            }
+        }
         return facets;
+    }
+
+    @Override
+    public Optional<Relationship> addRelationship(String worldId, String subjectId, String verb, String objectId) {
+        log.debug("Adding relationship in worldId={} subject={} verb={} object={}", worldId, subjectId, verb, objectId);
+        Optional<Entity> subject = entityRepository.findById(subjectId);
+        Optional<Entity> object = entityRepository.findById(objectId);
+        if (subject.isEmpty() || object.isEmpty()) {
+            log.debug("Relationship aborted, subject or object entity missing");
+            return Optional.empty();
+        }
+        if (worldId == null || !worldId.equals(subject.get().worldId()) || !worldId.equals(object.get().worldId())) {
+            log.debug("Relationship aborted, entities are not both in worldId={}", worldId);
+            return Optional.empty();
+        }
+        Optional<Relationship> stored = entityRepository.addRelationship(subjectId, verb, objectId);
+        stored.ifPresent(relationship -> log.info(
+                "Relationship stored on subject {}: {} -> {}", subjectId, relationship.verb(), relationship.objectId()));
+        return stored;
+    }
+
+    @Override
+    public List<Relationship> findRelationships(String subjectId) {
+        log.debug("Looking up relationships for subject={}", subjectId);
+        return entityRepository.findRelationships(subjectId);
+    }
+
+    @Override
+    public List<Entity> findByRelationship(String verb, String objectId) {
+        log.debug("Querying relationship verb={} object={}", verb, objectId);
+        return entityRepository.findByRelationship(verb, objectId);
     }
 }
 
