@@ -1,6 +1,8 @@
 package com.bic.burble.controller.ontology;
 
 import com.bic.burble.ontology.domain.Entity;
+import com.bic.burble.ontology.domain.Relationship;
+import com.bic.burble.ontology.domain.entity.AddRelationshipRequest;
 import com.bic.burble.ontology.domain.entity.CreateEntityRequest;
 import com.bic.burble.ontology.domain.entity.CreateEntityResponse;
 import com.bic.burble.ontology.service.EntityService;
@@ -131,6 +133,56 @@ public class EntityController {
         }
         log.debug("Delete failed, no entity found for entityId={}", entityId);
         return ResponseEntity.notFound().build();
+    }
+
+    @Operation(summary = "Link this entity to another",
+            description = "Stores one relationship statement on this entity. The other entity is not updated, so the inverse is a query rather than a second statement.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Relationship stored on the subject entity"),
+        @ApiResponse(responseCode = "404", description = "Subject or object entity was not found in this world")
+    })
+    @PostMapping("/{entityId}/relationship")
+    public ResponseEntity<Relationship> addRelationship(
+            @Parameter(name = "worldId", description = "Unique GUID of the world", required = true)
+            @PathVariable("worldId") String worldId,
+            @Parameter(name = "entityId", description = "Subject entity the statement is stored on", required = true)
+            @PathVariable("entityId") String entityId,
+            @Valid @RequestBody AddRelationshipRequest request) {
+        log.info("POST /api/v1/ontology/world/{}/entity/{}/relationship - {} -> {}",
+                worldId, entityId, request.verb(), request.objectId());
+        return entityService.addRelationship(worldId, entityId, request.verb(), request.objectId())
+                .map(relationship -> ResponseEntity.status(HttpStatus.CREATED).body(relationship))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @Operation(summary = "List relationships stored on an entity",
+            description = "Returns relationship statements whose subject is this entity. IS_A archetype statements are not included.")
+    @ApiResponse(responseCode = "200", description = "Relationships stored on the entity")
+    @GetMapping("/{entityId}/relationship")
+    public List<Relationship> getRelationships(
+            @Parameter(name = "worldId", description = "Unique GUID of the world", required = true)
+            @PathVariable("worldId") String worldId,
+            @Parameter(name = "entityId", description = "Subject entity", required = true)
+            @PathVariable("entityId") String entityId) {
+        log.info("GET  /api/v1/ontology/world/{}/entity/{}/relationship", worldId, entityId);
+        return entityService.findRelationships(entityId);
+    }
+
+    @Operation(summary = "Query the inverse of a stored relationship",
+            description = "Finds entities that store verb pointing at objectId. Carrying is this query for CARRIED_BY, not a stored statement.")
+    @ApiResponse(responseCode = "200", description = "Entities with a matching outgoing statement")
+    @GetMapping("/relationship")
+    public List<Entity> findByRelationship(
+            @Parameter(name = "worldId", description = "Unique GUID of the world", required = true)
+            @PathVariable("worldId") String worldId,
+            @Parameter(name = "verb", description = "Stored relationship verb", required = true)
+            @RequestParam("verb") String verb,
+            @Parameter(name = "objectId", description = "Entity id the statement points at", required = true)
+            @RequestParam("objectId") String objectId) {
+        log.info("GET  /api/v1/ontology/world/{}/entity/relationship?verb={}&objectId={}", worldId, verb, objectId);
+        return entityService.findByRelationship(verb, objectId).stream()
+                .filter(entity -> worldId.equals(entity.worldId()))
+                .toList();
     }
 }
 

@@ -26,5 +26,9 @@ public record CreateEntityRequest(
 
     @Valid
     @Schema(description = "Item archetype details; presence implies this entity is an Item")
-    ItemFacetRequest item
+    ItemFacetRequest item,
+
+    @Schema(description = "Formal archetype names stored as IS_A statements. Item properties still come from item. Character may also be set with character.",
+            example = "[\"Location\", \"Rule\"]")
+    List<String> archetypes
 ) {}
