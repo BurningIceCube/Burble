@@ -1,5 +1,8 @@
 package com.bic.burble.ontology.persistence.json;
 
+import com.bic.burble.ontology.domain.ArchetypeStatement;
+import com.bic.burble.ontology.domain.Entity;
+import com.bic.burble.ontology.domain.statement.Certainty;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacet;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacets;
 import com.bic.burble.ontology.domain.facet.ItemFacet;
@@ -52,6 +55,40 @@ final class FacetStatements {
             }
         }
         return statements;
+    }
+
+    /**
+     * One IS_A statement per archetype statement on the entity, each with
+     * that archetype's properties (item flags, period ticks) and its own
+     * time and certainty.
+     */
+    static List<StoredStatement> fromEntity(Entity entity) {
+        Map<String, StoredStatement> untimed = new HashMap<>();
+        for (StoredStatement statement : fromFacets(entity.facets())) {
+            untimed.put(statement.object(), statement);
+        }
+        List<StoredStatement> statements = new ArrayList<>();
+        for (ArchetypeStatement archetype : entity.archetypes()) {
+            StoredStatement base = untimed.get(archetype.archetype());
+            if (base != null) {
+                statements.add(base.withTiming(archetype.time(), archetype.certainty()));
+            }
+        }
+        return statements;
+    }
+
+    static List<ArchetypeStatement> toArchetypes(List<StoredStatement> statements) {
+        List<ArchetypeStatement> archetypes = new ArrayList<>();
+        if (statements == null) {
+            return archetypes;
+        }
+        for (StoredStatement statement : statements) {
+            if (statement != null && IS_A.equals(statement.verb()) && ArchetypeFacets.isKnown(statement.object())) {
+                archetypes.add(new ArchetypeStatement(statement.object(), statement.time(),
+                        Certainty.orDefault(statement.certainty())));
+            }
+        }
+        return archetypes;
     }
 
     static Set<ArchetypeFacet> toFacets(List<StoredStatement> statements) {

@@ -1,5 +1,6 @@
 package com.bic.burble.ontology.domain.statement;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -33,6 +34,7 @@ public record StatementTime(TimeBound start, TimeBound end) {
         return new StatementTime(TimeBound.inPeriod(periodId), TimeBound.inPeriod(periodId));
     }
 
+    @JsonIgnore
     public boolean isOpen() {
         return start == null && end == null;
     }
