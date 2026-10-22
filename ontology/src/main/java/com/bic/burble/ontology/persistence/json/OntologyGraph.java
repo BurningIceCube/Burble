@@ -16,7 +16,10 @@ import java.util.List;
  *       "guid", "worldId", "name", "aliases", "description",
  *       "statements": [
  *         { "verb": "IS_A", "object": "Item", "properties": { "portable": true, "unique": false } },
- *         { "verb": "IS_A", "object": "Character" }
+ *         { "verb": "IS_A", "object": "Character" },
+ *         { "verb": "CARRIED_BY", "object": "&lt;character id&gt;",
+ *           "time": { "start": { "tick": 250 }, "end": { "period": "&lt;period id&gt;" } },
+ *           "certainty": 0.8 }
  *       ]
  *     }
  *   ]
@@ -26,7 +29,8 @@ import java.util.List;
  * Worlds contain entities by {@code worldId}. An entity has no type field.
  * Each archetype is an {@code IS_A} statement on that entity, so one entity
  * can be an Item and a Character at the same time. Other statement verbs, if
- * present, sit in the same {@code statements} list.
+ * present, sit in the same {@code statements} list. {@code time} and
+ * {@code certainty} are optional on every statement; see {@link StoredStatement}.
  */
 public record OntologyGraph(List<StoredWorld> worlds, List<StoredEntity> entities) {
 
