@@ -2,10 +2,11 @@ package com.bic.burble.ontology.persistence.json;
 
 import com.bic.burble.ontology.domain.Entity;
 import com.bic.burble.ontology.domain.Relationship;
-import com.bic.burble.ontology.domain.RelationshipVerbs;
+import com.bic.burble.ontology.domain.RelationshipType;
 import com.bic.burble.ontology.domain.statement.Certainty;
 import com.bic.burble.ontology.domain.statement.OverlappingStatementException;
 import com.bic.burble.ontology.domain.statement.StatementTime;
+import com.bic.burble.ontology.domain.statement.TimeRange;
 import com.bic.burble.ontology.persistence.EntityRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,6 +92,8 @@ public class JsonEntityRepositoryAdapter implements EntityRepository {
         if (subjectId == null || verb == null || verb.isBlank() || objectId == null || objectId.isBlank()) {
             return Optional.empty();
         }
+        RelationshipType type = RelationshipType.parse(verb);
+        String canonical = type.name();
         double checkedCertainty = Certainty.validate(certainty);
         StatementTime checkedTime = time == null || time.isOpen() ? null : time;
         return store.update(graph -> {
@@ -98,25 +101,25 @@ public class JsonEntityRepositoryAdapter implements EntityRepository {
             if (found.isEmpty()) {
                 return Optional.<Relationship>empty();
             }
-            StatementTimes.Range range = StatementTimes.validate(graph, checkedTime);
+            TimeRange range = StatementTimes.validate(graph, checkedTime);
             StoredEntity subject = found.get();
             List<StoredStatement> statements = new ArrayList<>(subject.statements());
-            StoredStatement incoming = new StoredStatement(verb, objectId, Map.of(), checkedTime, checkedCertainty);
+            StoredStatement incoming = new StoredStatement(canonical, objectId, Map.of(), checkedTime, checkedCertainty);
 
             int sameIndex = -1;
             for (int i = 0; i < statements.size(); i++) {
                 StoredStatement statement = statements.get(i);
-                if (statement == null || !verb.equals(statement.verb())) {
+                if (statement == null || !canonical.equals(RelationshipType.canonicalOrSelf(statement.verb()))) {
                     continue;
                 }
                 if (objectId.equals(statement.object()) && Objects.equals(checkedTime, statement.time())) {
                     sameIndex = i;
                     continue;
                 }
-                if (RelationshipVerbs.isSingleValued(verb)
+                if (type.singleValued()
                         && StatementTimes.resolve(graph, statement.time()).overlaps(range)) {
                     throw new OverlappingStatementException(
-                            subjectId + " already has " + verb + " " + statement.object()
+                            subjectId + " already has " + canonical + " " + statement.object()
                                     + " during part of that time");
                 }
             }
@@ -168,11 +171,12 @@ public class JsonEntityRepositoryAdapter implements EntityRepository {
         if (verb == null || objectId == null) {
             return List.of();
         }
+        String wanted = RelationshipType.canonicalOrSelf(verb);
         OntologyGraph graph = store.load();
         return graph.entities().stream()
                 .filter(entity -> entity.statements().stream()
                         .anyMatch(statement -> statement != null
-                                && verb.equals(statement.verb())
+                                && wanted.equals(RelationshipType.canonicalOrSelf(statement.verb()))
                                 && objectId.equals(statement.object())
                                 && holdsAt(graph, statement, atTick)))
                 .map(this::toDomain)
@@ -184,7 +188,9 @@ public class JsonEntityRepositoryAdapter implements EntityRepository {
     }
 
     private static Relationship toRelationship(StoredStatement statement) {
-        return new Relationship(statement.verb(), statement.object(), statement.time(),
+        // Known verbs come back upper case even if an older file stored them
+        // differently; unknown verbs from older files are returned as stored.
+        return new Relationship(RelationshipType.canonicalOrSelf(statement.verb()), statement.object(), statement.time(),
                 Certainty.orDefault(statement.certainty()));
     }
 

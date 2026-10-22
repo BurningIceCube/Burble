@@ -2,6 +2,7 @@ package com.bic.burble.ontology.service.impl;
 
 import com.bic.burble.ontology.domain.Entity;
 import com.bic.burble.ontology.domain.Relationship;
+import com.bic.burble.ontology.domain.RelationshipType;
 import com.bic.burble.ontology.domain.entity.CreateEntityRequest;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacet;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacets;
@@ -146,6 +147,7 @@ public class DefaultEntityService implements EntityService {
     public Optional<Relationship> addRelationship(String worldId, String subjectId, String verb, String objectId,
                                                   StatementTime time, Double certainty) {
         log.debug("Adding relationship in worldId={} subject={} verb={} object={}", worldId, subjectId, verb, objectId);
+        verb = RelationshipType.parse(verb).name();
         Optional<Entity> subject = entityRepository.findById(subjectId);
         Optional<Entity> object = entityRepository.findById(objectId);
         if (subject.isEmpty() || object.isEmpty()) {
@@ -171,7 +173,7 @@ public class DefaultEntityService implements EntityService {
     @Override
     public List<Entity> findByRelationship(String verb, String objectId) {
         log.debug("Querying relationship verb={} object={}", verb, objectId);
-        return entityRepository.findByRelationship(verb, objectId);
+        return entityRepository.findByRelationship(RelationshipType.parse(verb).name(), objectId);
     }
 
     @Override
@@ -183,6 +185,6 @@ public class DefaultEntityService implements EntityService {
     @Override
     public List<Entity> findByRelationship(String verb, String objectId, Long atTick) {
         log.debug("Querying relationship verb={} object={} atTick={}", verb, objectId, atTick);
-        return entityRepository.findByRelationship(verb, objectId, atTick);
+        return entityRepository.findByRelationship(RelationshipType.parse(verb).name(), objectId, atTick);
     }
 }

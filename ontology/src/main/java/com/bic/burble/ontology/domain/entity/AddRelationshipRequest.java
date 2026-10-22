@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 @Schema(description = "A relationship stored once, on the subject entity. The inverse is not written.")
 public record AddRelationshipRequest(
         @NotBlank(message = "Verb is required")
-        @Schema(description = "Relationship verb. Carrying is stored as CARRIED_BY on the thing carried.", example = "CARRIED_BY")
+        @Schema(description = "Relationship verb from the fixed list (CARRIED_BY). Matched case-insensitively and stored upper case. Carrying is stored as CARRIED_BY on the thing carried.", example = "CARRIED_BY")
         String verb,
 
         @NotBlank(message = "Object entity id is required")

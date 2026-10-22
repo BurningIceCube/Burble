@@ -16,29 +16,22 @@ public interface EntityRepository {
 
     /**
      * Appends one relationship statement on the subject entity. Does not write
-     * an inverse statement on the object. Empty when the subject does not exist.
-     * The JSON store implements this; other stores do not.
+     * an inverse statement on the object. Empty when the subject or object
+     * does not exist.
      */
-    default Optional<Relationship> addRelationship(String subjectId, String verb, String objectId) {
-        throw new UnsupportedOperationException(
-                "Relationship statements are not supported by " + getClass().getName());
-    }
+    Optional<Relationship> addRelationship(String subjectId, String verb, String objectId);
 
     /**
      * Relationship statements stored on the subject. Archetype {@code IS_A}
-     * statements are not included. Empty when this store cannot read them.
+     * statements are not included.
      */
-    default List<Relationship> findRelationships(String subjectId) {
-        return List.of();
-    }
+    List<Relationship> findRelationships(String subjectId);
 
     /**
      * Entities that already store {@code verb} pointing at {@code objectId}.
      * This is how an inverse such as carrying is queried, not stored.
      */
-    default List<Entity> findByRelationship(String verb, String objectId) {
-        return List.of();
-    }
+    List<Entity> findByRelationship(String verb, String objectId);
 
     /**
      * Appends one relationship statement with a time range and certainty.
@@ -47,39 +40,20 @@ public interface EntityRepository {
      * for a bad certainty or time range, and
      * {@link com.bic.burble.ontology.domain.statement.OverlappingStatementException}
      * when a single-valued verb such as {@code CARRIED_BY} would overlap an
-     * existing statement. Only the JSON store supports a time or certainty.
+     * existing statement.
      */
-    default Optional<Relationship> addRelationship(
-            String subjectId, String verb, String objectId, StatementTime time, Double certainty) {
-        boolean plain = (time == null || time.isOpen()) && (certainty == null || certainty == 1.0);
-        if (plain) {
-            return addRelationship(subjectId, verb, objectId);
-        }
-        throw new UnsupportedOperationException(
-                "Timed statements are not supported by " + getClass().getName());
-    }
+    Optional<Relationship> addRelationship(
+            String subjectId, String verb, String objectId, StatementTime time, Double certainty);
 
     /**
      * Relationship statements on the subject that hold at {@code atTick}.
-     * Null {@code atTick} returns every statement, like {@link #findRelationships(String)}.
+     * Null {@code atTick} returns every statement.
      */
-    default List<Relationship> findRelationships(String subjectId, Long atTick) {
-        if (atTick == null) {
-            return findRelationships(subjectId);
-        }
-        throw new UnsupportedOperationException(
-                "Timed queries are not supported by " + getClass().getName());
-    }
+    List<Relationship> findRelationships(String subjectId, Long atTick);
 
     /**
      * Entities storing {@code verb} at {@code objectId} that hold at
      * {@code atTick}. Null {@code atTick} ignores time.
      */
-    default List<Entity> findByRelationship(String verb, String objectId, Long atTick) {
-        if (atTick == null) {
-            return findByRelationship(verb, objectId);
-        }
-        throw new UnsupportedOperationException(
-                "Timed queries are not supported by " + getClass().getName());
-    }
+    List<Entity> findByRelationship(String verb, String objectId, Long atTick);
 }

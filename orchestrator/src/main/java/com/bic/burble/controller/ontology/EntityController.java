@@ -191,7 +191,7 @@ public class EntityController {
     public List<Entity> findByRelationship(
             @Parameter(name = "worldId", description = "Unique GUID of the world", required = true)
             @PathVariable("worldId") String worldId,
-            @Parameter(name = "verb", description = "Stored relationship verb", required = true)
+            @Parameter(name = "verb", description = "Relationship verb, matched case-insensitively. Allowed: CARRIED_BY", required = true)
             @RequestParam("verb") String verb,
             @Parameter(name = "objectId", description = "Entity id the statement points at", required = true)
             @RequestParam("objectId") String objectId,
@@ -203,5 +203,11 @@ public class EntityController {
                 .filter(entity -> worldId.equals(entity.worldId()))
                 .toList();
     }
-}
 
+    /** Unknown relationship verbs, bad certainty or bad time ranges are client errors. */
+    @ExceptionHandler(InvalidStatementException.class)
+    public ResponseEntity<Map<String, String>> invalidStatement(InvalidStatementException ex) {
+        HttpStatus status = ex instanceof OverlappingStatementException ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(Map.of("error", ex.getMessage()));
+    }
+}
