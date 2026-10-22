@@ -6,6 +6,7 @@ import com.bic.burble.ontology.domain.RelationshipVerbs;
 import com.bic.burble.ontology.domain.statement.Certainty;
 import com.bic.burble.ontology.domain.statement.OverlappingStatementException;
 import com.bic.burble.ontology.domain.statement.StatementTime;
+import com.bic.burble.ontology.domain.statement.TimeRange;
 import com.bic.burble.ontology.persistence.EntityRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,7 +99,7 @@ public class JsonEntityRepositoryAdapter implements EntityRepository {
             if (found.isEmpty()) {
                 return Optional.<Relationship>empty();
             }
-            StatementTimes.Range range = StatementTimes.validate(graph, checkedTime);
+            TimeRange range = StatementTimes.validate(graph, checkedTime);
             StoredEntity subject = found.get();
             List<StoredStatement> statements = new ArrayList<>(subject.statements());
             StoredStatement incoming = new StoredStatement(verb, objectId, Map.of(), checkedTime, checkedCertainty);
