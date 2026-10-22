@@ -219,7 +219,14 @@ class Neo4jEntityRepositoryAdapterTest {
     void isATimeAndCertaintySurviveResave() {
         run("MATCH (:Entity {id:'sword'})-[r:IS_A]->() SET r.startTick = 120, r.certainty = 0.7");
 
-        entities.update(new Entity("sword", "w", "Sung Sword", List.of(), "renamed", Set.of(new ItemFacet(true, false))));
+        // The domain entity now carries the timed IS_A statements, so saving it back keeps them.
+        Entity loaded = entities.findById("sword").orElseThrow();
+        assertThat(loaded.archetypes()).singleElement().satisfies(statement -> {
+            assertThat(statement.time()).isEqualTo(StatementTime.from(120));
+            assertThat(statement.certainty()).isEqualTo(0.7);
+        });
+        entities.update(new Entity("sword", "w", "Sung Sword", List.of(), "renamed", Set.of(new ItemFacet(true, false)),
+                loaded.archetypes()));
 
         assertThat(run("MATCH (:Entity {id:'sword'})-[r:IS_A]->(a) RETURN properties(r) AS p, a.unique AS u"))
                 .singleElement().satisfies(row -> {

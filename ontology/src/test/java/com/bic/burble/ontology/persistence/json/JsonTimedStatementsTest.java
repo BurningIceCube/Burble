@@ -197,7 +197,14 @@ class JsonTimedStatementsTest {
             return null;
         });
 
-        entities.update(new Entity("sword", "w", "Sung Sword", List.of(), "renamed", Set.of(new ItemFacet(true, false))));
+        // The domain entity now carries the timed IS_A statements, so saving it back keeps them.
+        Entity loaded = entities.findById("sword").orElseThrow();
+        assertThat(loaded.archetypes()).singleElement().satisfies(statement -> {
+            assertThat(statement.time()).isEqualTo(StatementTime.from(120));
+            assertThat(statement.certainty()).isEqualTo(0.7);
+        });
+        entities.update(new Entity("sword", "w", "Sung Sword", List.of(), "renamed", Set.of(new ItemFacet(true, false)),
+                loaded.archetypes()));
 
         StoredStatement isA = new JsonFileOntologyGraphStore(file).load().entities().stream()
                 .filter(e -> "sword".equals(e.guid())).findFirst().orElseThrow()
