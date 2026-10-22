@@ -213,18 +213,7 @@ public class JsonEntityRepositoryAdapter implements EntityRepository {
                 }
             }
         }
-        // Keep the time and certainty of archetypes the entity already had.
-        for (StoredStatement archetype : FacetStatements.fromFacets(entity.facets())) {
-            StoredStatement previous = existing == null ? null : existing.stream()
-                    .filter(statement -> statement != null
-                            && FacetStatements.IS_A.equals(statement.verb())
-                            && Objects.equals(archetype.object(), statement.object()))
-                    .findFirst()
-                    .orElse(null);
-            statements.add(previous == null
-                    ? archetype
-                    : archetype.withTiming(previous.time(), previous.certainty()));
-        }
+        statements.addAll(FacetStatements.fromEntity(entity));
         List<String> aliases = entity.aliases() == null ? List.of() : entity.aliases();
         return new StoredEntity(
                 entity.guid(),
@@ -244,7 +233,8 @@ public class JsonEntityRepositoryAdapter implements EntityRepository {
                 stored.name(),
                 aliases,
                 stored.description(),
-                FacetStatements.toFacets(stored.statements())
+                FacetStatements.toFacets(stored.statements()),
+                FacetStatements.toArchetypes(stored.statements())
         );
     }
 }
