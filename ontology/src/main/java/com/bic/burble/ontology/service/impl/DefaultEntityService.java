@@ -7,6 +7,8 @@ import com.bic.burble.ontology.domain.facet.ArchetypeFacet;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacets;
 import com.bic.burble.ontology.domain.facet.CharacterFacet;
 import com.bic.burble.ontology.domain.facet.ItemFacet;
+import com.bic.burble.ontology.domain.facet.PeriodFacet;
+import com.bic.burble.ontology.domain.statement.StatementTime;
 import com.bic.burble.ontology.persistence.EntityRepository;
 import com.bic.burble.ontology.service.EntityService;
 import org.slf4j.Logger;
@@ -108,6 +110,9 @@ public class DefaultEntityService implements EntityService {
         if (request.item() != null) {
             facets.add(new ItemFacet(request.item().portable(), request.item().unique()));
         }
+        if (request.period() != null) {
+            facets.add(new PeriodFacet(request.period().startTick(), request.period().endTick()));
+        }
         if (request.archetypes() != null) {
             for (String name : request.archetypes()) {
                 if (name == null || name.isBlank()) {
@@ -117,6 +122,9 @@ public class DefaultEntityService implements EntityService {
                     if (request.item() == null) {
                         facets.add(new ItemFacet(false, false));
                     }
+                    continue;
+                }
+                if ("Period".equals(name) && request.period() != null) {
                     continue;
                 }
                 ArchetypeFacet facet = ArchetypeFacets.of(name, null, null);
@@ -131,6 +139,12 @@ public class DefaultEntityService implements EntityService {
 
     @Override
     public Optional<Relationship> addRelationship(String worldId, String subjectId, String verb, String objectId) {
+        return addRelationship(worldId, subjectId, verb, objectId, null, null);
+    }
+
+    @Override
+    public Optional<Relationship> addRelationship(String worldId, String subjectId, String verb, String objectId,
+                                                  StatementTime time, Double certainty) {
         log.debug("Adding relationship in worldId={} subject={} verb={} object={}", worldId, subjectId, verb, objectId);
         Optional<Entity> subject = entityRepository.findById(subjectId);
         Optional<Entity> object = entityRepository.findById(objectId);
@@ -142,7 +156,7 @@ public class DefaultEntityService implements EntityService {
             log.debug("Relationship aborted, entities are not both in worldId={}", worldId);
             return Optional.empty();
         }
-        Optional<Relationship> stored = entityRepository.addRelationship(subjectId, verb, objectId);
+        Optional<Relationship> stored = entityRepository.addRelationship(subjectId, verb, objectId, time, certainty);
         stored.ifPresent(relationship -> log.info(
                 "Relationship stored on subject {}: {} -> {}", subjectId, relationship.verb(), relationship.objectId()));
         return stored;
@@ -159,5 +173,16 @@ public class DefaultEntityService implements EntityService {
         log.debug("Querying relationship verb={} object={}", verb, objectId);
         return entityRepository.findByRelationship(verb, objectId);
     }
-}
 
+    @Override
+    public List<Relationship> findRelationships(String subjectId, Long atTick) {
+        log.debug("Looking up relationships for subject={} atTick={}", subjectId, atTick);
+        return entityRepository.findRelationships(subjectId, atTick);
+    }
+
+    @Override
+    public List<Entity> findByRelationship(String verb, String objectId, Long atTick) {
+        log.debug("Querying relationship verb={} object={} atTick={}", verb, objectId, atTick);
+        return entityRepository.findByRelationship(verb, objectId, atTick);
+    }
+}

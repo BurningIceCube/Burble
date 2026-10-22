@@ -3,6 +3,7 @@ package com.bic.burble.ontology.service;
 import com.bic.burble.ontology.domain.Entity;
 import com.bic.burble.ontology.domain.Relationship;
 import com.bic.burble.ontology.domain.entity.CreateEntityRequest;
+import com.bic.burble.ontology.domain.statement.StatementTime;
 
 import java.util.List;
 import java.util.Optional;
@@ -77,5 +78,23 @@ public interface EntityService {
      * Entities that store {@code verb} pointing at {@code objectId}.
      */
     List<Entity> findByRelationship(String verb, String objectId);
-}
 
+    /**
+     * Stores one relationship with when it holds and how certain it is.
+     * {@code time} null means always or unknown; {@code certainty} null means 1.
+     *
+     * @throws com.bic.burble.ontology.domain.statement.InvalidStatementException
+     *         when certainty is outside 0..1, a period bound is not a Period
+     *         entity, or the range ends before it starts
+     * @throws com.bic.burble.ontology.domain.statement.OverlappingStatementException
+     *         when a single-valued verb such as CARRIED_BY would overlap
+     */
+    Optional<Relationship> addRelationship(String worldId, String subjectId, String verb, String objectId,
+                                           StatementTime time, Double certainty);
+
+    /** Relationships on the subject that hold at {@code atTick}; null means all. */
+    List<Relationship> findRelationships(String subjectId, Long atTick);
+
+    /** Entities storing {@code verb} at {@code objectId} at {@code atTick}; null ignores time. */
+    List<Entity> findByRelationship(String verb, String objectId, Long atTick);
+}
