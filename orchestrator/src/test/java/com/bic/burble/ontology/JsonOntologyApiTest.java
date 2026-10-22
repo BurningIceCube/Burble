@@ -167,4 +167,79 @@ class JsonOntologyApiTest {
         assertThat(carriedBy).isEqualTo(1);
         assertThat(carrying).isEqualTo(0);
     }
+
+    private String create(String path, String body, String idField, Object... vars) throws Exception {
+        String response = mockMvc.perform(post(path, vars)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(response).get(idField).asText();
+    }
+
+    @Test
+    void timedCarriesWithPeriodsAndCertaintyThroughTheApi() throws Exception {
+        Files.deleteIfExists(FILE);
+        String worldId = create("/api/v1/ontology/world", "{\"name\":\"Aethelgard\"}", "worldId");
+        String base = "/api/v1/ontology/world/{worldId}/entity";
+        String heroId = create(base, "{\"name\":\"Aldric\",\"character\":true}", "entityId", worldId);
+        String miraId = create(base, "{\"name\":\"Mira\",\"character\":true}", "entityId", worldId);
+        String swordId = create(base, "{\"name\":\"Sung Sword\",\"item\":{\"portable\":true,\"unique\":true}}", "entityId", worldId);
+        String ageId = create(base, "{\"name\":\"Age of Imperials\",\"period\":{\"startTick\":200,\"endTick\":300}}", "entityId", worldId);
+
+        mockMvc.perform(get(base + "/{entityId}", worldId, ageId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.facets[0].startTick").value(200))
+                .andExpect(jsonPath("$.facets[0].endTick").value(300));
+
+        String rel = base + "/{entityId}/relationship";
+        mockMvc.perform(post(rel, worldId, swordId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"verb":"CARRIED_BY","objectId":"%s","time":{"start":{"period":"%s"},"end":{"period":"%s"}},"certainty":0.8}
+                                """.formatted(heroId, ageId, ageId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.certainty").value(0.8))
+                .andExpect(jsonPath("$.time.start.period").value(ageId));
+
+        mockMvc.perform(post(rel, worldId, swordId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"CARRIED_BY\",\"objectId\":\"%s\",\"time\":{\"start\":{\"tick\":250}}}".formatted(miraId)))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(post(rel, worldId, swordId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"CARRIED_BY\",\"objectId\":\"%s\",\"certainty\":1.2}".formatted(miraId)))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post(rel, worldId, swordId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"CARRIED_BY\",\"objectId\":\"%s\",\"time\":{\"start\":{\"period\":\"%s\"}}}".formatted(miraId, heroId)))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post(rel, worldId, swordId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"CARRIED_BY\",\"objectId\":\"%s\",\"time\":{\"start\":{\"tick\":300}}}".formatted(miraId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.certainty").value(1.0))
+                .andExpect(jsonPath("$.time.end").doesNotExist());
+
+        mockMvc.perform(get(rel, worldId, swordId).param("atTick", "250"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].objectId").value(heroId));
+        mockMvc.perform(get(rel, worldId, swordId).param("atTick", "300"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].objectId").value(miraId));
+        mockMvc.perform(get(rel, worldId, swordId))
+                .andExpect(jsonPath("$.length()").value(2));
+
+        mockMvc.perform(get(base + "/relationship", worldId)
+                        .param("verb", "CARRIED_BY").param("objectId", heroId).param("atTick", "299"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].guid").value(swordId));
+        mockMvc.perform(get(base + "/relationship", worldId)
+                        .param("verb", "CARRIED_BY").param("objectId", heroId).param("atTick", "300"))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
 }

@@ -5,6 +5,8 @@ import com.bic.burble.ontology.domain.Relationship;
 import com.bic.burble.ontology.domain.entity.AddRelationshipRequest;
 import com.bic.burble.ontology.domain.entity.CreateEntityRequest;
 import com.bic.burble.ontology.domain.entity.CreateEntityResponse;
+import com.bic.burble.ontology.domain.statement.InvalidStatementException;
+import com.bic.burble.ontology.domain.statement.OverlappingStatementException;
 import com.bic.burble.ontology.service.EntityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST endpoints for entity management, backed by the {@code ontology}
@@ -139,10 +142,12 @@ public class EntityController {
             description = "Stores one relationship statement on this entity. The other entity is not updated, so the inverse is a query rather than a second statement.")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Relationship stored on the subject entity"),
+        @ApiResponse(responseCode = "400", description = "Certainty outside 0..1, unknown period, or a range that ends before it starts"),
+        @ApiResponse(responseCode = "409", description = "A CARRIED_BY statement on this entity already covers part of that time"),
         @ApiResponse(responseCode = "404", description = "Subject or object entity was not found in this world")
     })
     @PostMapping("/{entityId}/relationship")
-    public ResponseEntity<Relationship> addRelationship(
+    public ResponseEntity<?> addRelationship(
             @Parameter(name = "worldId", description = "Unique GUID of the world", required = true)
             @PathVariable("worldId") String worldId,
             @Parameter(name = "entityId", description = "Subject entity the statement is stored on", required = true)
@@ -150,9 +155,18 @@ public class EntityController {
             @Valid @RequestBody AddRelationshipRequest request) {
         log.info("POST /api/v1/ontology/world/{}/entity/{}/relationship - {} -> {}",
                 worldId, entityId, request.verb(), request.objectId());
-        return entityService.addRelationship(worldId, entityId, request.verb(), request.objectId())
-                .map(relationship -> ResponseEntity.status(HttpStatus.CREATED).body(relationship))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        try {
+            return entityService.addRelationship(worldId, entityId, request.verb(), request.objectId(),
+                            request.time(), request.certainty())
+                    .<ResponseEntity<?>>map(relationship -> ResponseEntity.status(HttpStatus.CREATED).body(relationship))
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+        } catch (OverlappingStatementException ex) {
+            log.debug("Relationship rejected, overlapping time: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", ex.getMessage()));
+        } catch (InvalidStatementException ex) {
+            log.debug("Relationship rejected: {}", ex.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @Operation(summary = "List relationships stored on an entity",
@@ -163,9 +177,11 @@ public class EntityController {
             @Parameter(name = "worldId", description = "Unique GUID of the world", required = true)
             @PathVariable("worldId") String worldId,
             @Parameter(name = "entityId", description = "Subject entity", required = true)
-            @PathVariable("entityId") String entityId) {
-        log.info("GET  /api/v1/ontology/world/{}/entity/{}/relationship", worldId, entityId);
-        return entityService.findRelationships(entityId);
+            @PathVariable("entityId") String entityId,
+            @Parameter(name = "atTick", description = "Only statements that hold at this tick. Leave out for all.")
+            @RequestParam(value = "atTick", required = false) Long atTick) {
+        log.info("GET  /api/v1/ontology/world/{}/entity/{}/relationship atTick={}", worldId, entityId, atTick);
+        return entityService.findRelationships(entityId, atTick);
     }
 
     @Operation(summary = "Query the inverse of a stored relationship",
@@ -178,9 +194,12 @@ public class EntityController {
             @Parameter(name = "verb", description = "Stored relationship verb", required = true)
             @RequestParam("verb") String verb,
             @Parameter(name = "objectId", description = "Entity id the statement points at", required = true)
-            @RequestParam("objectId") String objectId) {
-        log.info("GET  /api/v1/ontology/world/{}/entity/relationship?verb={}&objectId={}", worldId, verb, objectId);
-        return entityService.findByRelationship(verb, objectId).stream()
+            @RequestParam("objectId") String objectId,
+            @Parameter(name = "atTick", description = "Only statements that hold at this tick. Leave out for all.")
+            @RequestParam(value = "atTick", required = false) Long atTick) {
+        log.info("GET  /api/v1/ontology/world/{}/entity/relationship?verb={}&objectId={}&atTick={}",
+                worldId, verb, objectId, atTick);
+        return entityService.findByRelationship(verb, objectId, atTick).stream()
                 .filter(entity -> worldId.equals(entity.worldId()))
                 .toList();
     }
