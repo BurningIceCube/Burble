@@ -264,15 +264,25 @@ class JsonOntologyApiTest {
                 .andExpect(jsonPath("$[0].guid").value(swordId));
 
         mockMvc.perform(post(rel, worldId, swordId).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"verb\":\"MEMBER_OF\",\"objectId\":\"%s\"}".formatted(heroId)))
+                        .content("{\"verb\":\"FLIES_WITH\",\"objectId\":\"%s\"}".formatted(heroId)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Allowed values: CARRIED_BY")));
         mockMvc.perform(post(rel, worldId, swordId).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"verb\":\"IS_A\",\"objectId\":\"%s\"}".formatted(heroId)))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(get(base + "/relationship", worldId).param("verb", "MEMBER_OF").param("objectId", heroId))
+        mockMvc.perform(get(base + "/relationship", worldId).param("verb", "FLIES_WITH").param("objectId", heroId))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Allowed values: CARRIED_BY")));
+
+        // The catalog: a character cannot be LOCATED_IN an item, or be its own parent.
+        mockMvc.perform(post(rel, worldId, heroId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"located_in\",\"objectId\":\"%s\"}".formatted(swordId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString(
+                        "LOCATED_IN allows Character or Event or Item or Organization -> Location")));
+        mockMvc.perform(post(rel, worldId, heroId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"CHILD_OF\",\"objectId\":\"%s\"}".formatted(heroId)))
+                .andExpect(status().isBadRequest());
 
         JsonNode root = JsonMapper.builder().build().readTree(FILE);
         for (JsonNode entity : root.get("entities")) {

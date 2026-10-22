@@ -79,18 +79,18 @@ class RelationshipVerbRuleTest {
 
     @Test
     void unknownVerbsAreRejectedWithTheAllowedList() {
-        for (String verb : List.of("MEMBER_OF", "IS_A", "is_a", "carried by", "")) {
+        for (String verb : List.of("FLIES_WITH", "IS_A", "is_a", "carried by", "")) {
             assertThatThrownBy(() -> service.addRelationship("w", "sword", verb, "hero"))
                     .as(verb)
                     .isInstanceOf(InvalidStatementException.class)
                     .hasMessageContaining("Allowed values: CARRIED_BY");
         }
-        assertThatThrownBy(() -> repository.addRelationship("sword", "MEMBER_OF", "hero"))
+        assertThatThrownBy(() -> repository.addRelationship("sword", "FLIES_WITH", "hero"))
                 .isInstanceOf(InvalidStatementException.class);
-        assertThatThrownBy(() -> service.findByRelationship("MEMBER_OF", "hero"))
+        assertThatThrownBy(() -> service.findByRelationship("FLIES_WITH", "hero"))
                 .isInstanceOf(InvalidStatementException.class);
         // Checked before looking up the entities.
-        assertThatThrownBy(() -> service.addRelationship("w", "missing", "MEMBER_OF", "hero"))
+        assertThatThrownBy(() -> service.addRelationship("w", "missing", "FLIES_WITH", "hero"))
                 .isInstanceOf(InvalidStatementException.class);
         assertThat(repository.findRelationships("sword")).isEmpty();
     }
@@ -105,7 +105,7 @@ class RelationshipVerbRuleTest {
                     {"verb": "FORGED_BY", "object": "mira"}
                   ]},
                   {"guid": "hero", "worldId": "w", "name": "Hero", "statements": []},
-                  {"guid": "mira", "worldId": "w", "name": "Mira", "statements": []}
+                  {"guid": "mira", "worldId": "w", "name": "Mira", "statements": [{"verb": "IS_A", "object": "Character"}]}
                 ]}
                 """);
         JsonEntityRepositoryAdapter reloaded = new JsonEntityRepositoryAdapter(new JsonFileOntologyGraphStore(file));
