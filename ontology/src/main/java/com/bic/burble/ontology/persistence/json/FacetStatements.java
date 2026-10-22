@@ -3,8 +3,10 @@ package com.bic.burble.ontology.persistence.json;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacet;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacets;
 import com.bic.burble.ontology.domain.facet.ItemFacet;
+import com.bic.burble.ontology.domain.facet.PeriodFacet;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +20,9 @@ final class FacetStatements {
 
     static final String IS_A = "IS_A";
     static final String ITEM = "Item";
+    static final String PERIOD = "Period";
+    static final String START_TICK = "startTick";
+    static final String END_TICK = "endTick";
 
     private FacetStatements() {
     }
@@ -33,6 +38,15 @@ final class FacetStatements {
                         "portable", item.portable(),
                         "unique", item.unique()
                 )));
+            } else if (facet instanceof PeriodFacet period) {
+                Map<String, Object> properties = new HashMap<>();
+                if (period.startTick() != null) {
+                    properties.put(START_TICK, period.startTick());
+                }
+                if (period.endTick() != null) {
+                    properties.put(END_TICK, period.endTick());
+                }
+                statements.add(new StoredStatement(IS_A, PERIOD, properties));
             } else {
                 statements.add(new StoredStatement(IS_A, ArchetypeFacets.nameOf(facet), Map.of()));
             }
@@ -49,16 +63,41 @@ final class FacetStatements {
             if (statement == null || !IS_A.equals(statement.verb()) || statement.object() == null) {
                 continue;
             }
-            ArchetypeFacet facet = ITEM.equals(statement.object())
-                    ? new ItemFacet(
-                            bool(statement.properties(), "portable"),
-                            bool(statement.properties(), "unique"))
-                    : ArchetypeFacets.of(statement.object(), null, null);
+            ArchetypeFacet facet;
+            if (ITEM.equals(statement.object())) {
+                facet = new ItemFacet(
+                        bool(statement.properties(), "portable"),
+                        bool(statement.properties(), "unique"));
+            } else if (PERIOD.equals(statement.object())) {
+                facet = new PeriodFacet(
+                        tick(statement.properties(), START_TICK),
+                        tick(statement.properties(), END_TICK));
+            } else {
+                facet = ArchetypeFacets.of(statement.object(), null, null);
+            }
             if (facet != null) {
                 facets.add(facet);
             }
         }
         return facets;
+    }
+
+    static Long tick(Map<String, Object> properties, String key) {
+        if (properties == null) {
+            return null;
+        }
+        Object value = properties.get(key);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private static boolean bool(Map<String, Object> properties, String key) {

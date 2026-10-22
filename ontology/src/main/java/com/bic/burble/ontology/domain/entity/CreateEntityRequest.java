@@ -30,5 +30,14 @@ public record CreateEntityRequest(
 
     @Schema(description = "Formal archetype names stored as IS_A statements. Item properties still come from item. Character may also be set with character.",
             example = "[\"Location\", \"Rule\"]")
-    List<String> archetypes
-) {}
+    List<String> archetypes,
+
+    @Valid
+    @Schema(description = "Period archetype details; presence implies this entity is a Period whose ticks other statements can use")
+    PeriodFacetRequest period
+) {
+    public CreateEntityRequest(String name, List<String> aliases, String description, Boolean character,
+                               ItemFacetRequest item, List<String> archetypes) {
+        this(name, aliases, description, character, item, archetypes, null);
+    }
+}
