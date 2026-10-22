@@ -1,7 +1,7 @@
 # Composites
 
 Composites are user-facing concepts that sit on top of the formal ontology.  
-They have real API endpoints and can be used as if they were first-class, but internally they map to formal archetypes.
+They are not stored types and do not have their own API endpoints. A composite is a query over formal archetypes and their [relationships](relationships.md): for example, a Religion is a Worldview together with the Organizations, Concepts and Rules connected to it.
 
 ## Core Composites
 

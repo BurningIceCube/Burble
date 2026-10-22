@@ -9,6 +9,7 @@ import com.bic.burble.ontology.domain.facet.ArchetypeFacets;
 import com.bic.burble.ontology.domain.facet.CharacterFacet;
 import com.bic.burble.ontology.domain.facet.ItemFacet;
 import com.bic.burble.ontology.domain.facet.PeriodFacet;
+import com.bic.burble.ontology.domain.statement.InvalidStatementException;
 import com.bic.burble.ontology.domain.statement.StatementTime;
 import com.bic.burble.ontology.persistence.EntityRepository;
 import com.bic.burble.ontology.service.EntityService;
@@ -147,7 +148,11 @@ public class DefaultEntityService implements EntityService {
     public Optional<Relationship> addRelationship(String worldId, String subjectId, String verb, String objectId,
                                                   StatementTime time, Double certainty) {
         log.debug("Adding relationship in worldId={} subject={} verb={} object={}", worldId, subjectId, verb, objectId);
-        verb = RelationshipType.parse(verb).name();
+        RelationshipType type = RelationshipType.parse(verb);
+        verb = type.name();
+        if (subjectId != null && subjectId.equals(objectId)) {
+            throw new InvalidStatementException("An entity cannot have " + verb + " pointing at itself");
+        }
         Optional<Entity> subject = entityRepository.findById(subjectId);
         Optional<Entity> object = entityRepository.findById(objectId);
         if (subject.isEmpty() || object.isEmpty()) {
@@ -158,6 +163,8 @@ public class DefaultEntityService implements EntityService {
             log.debug("Relationship aborted, entities are not both in worldId={}", worldId);
             return Optional.empty();
         }
+        // Archetypes count whenever the entity has them; IS_A time is not considered.
+        type.requireAllowed(archetypeNames(subject.get()), archetypeNames(object.get()));
         Optional<Relationship> stored = entityRepository.addRelationship(subjectId, verb, objectId, time, certainty);
         stored.ifPresent(relationship -> log.info(
                 "Relationship stored on subject {}: {} -> {}", subjectId, relationship.verb(), relationship.objectId()));
@@ -186,5 +193,15 @@ public class DefaultEntityService implements EntityService {
     public List<Entity> findByRelationship(String verb, String objectId, Long atTick) {
         log.debug("Querying relationship verb={} object={} atTick={}", verb, objectId, atTick);
         return entityRepository.findByRelationship(RelationshipType.parse(verb).name(), objectId, atTick);
+    }
+
+    private static Set<String> archetypeNames(Entity entity) {
+        Set<String> names = new HashSet<>();
+        if (entity.facets() != null) {
+            for (ArchetypeFacet facet : entity.facets()) {
+                names.add(ArchetypeFacets.nameOf(facet));
+            }
+        }
+        return names;
     }
 }
