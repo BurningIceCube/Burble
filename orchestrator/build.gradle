@@ -23,6 +23,8 @@ dependencies {
 
     testImplementation 'org.springframework.boot:spring-boot-starter-web'
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.testcontainers:testcontainers-neo4j'
+    testImplementation 'org.neo4j.driver:neo4j-java-driver'
 }
 
 bootJar {
