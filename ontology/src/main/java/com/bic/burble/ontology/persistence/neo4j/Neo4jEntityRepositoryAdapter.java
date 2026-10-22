@@ -2,7 +2,7 @@ package com.bic.burble.ontology.persistence.neo4j;
 
 import com.bic.burble.ontology.domain.Entity;
 import com.bic.burble.ontology.domain.Relationship;
-import com.bic.burble.ontology.domain.RelationshipVerbs;
+import com.bic.burble.ontology.domain.RelationshipType;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacet;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacets;
 import com.bic.burble.ontology.domain.facet.ItemFacet;
@@ -236,7 +236,9 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
         if (subjectId == null || verb == null || verb.isBlank() || objectId == null || objectId.isBlank()) {
             return Optional.empty();
         }
-        String type = RelationshipVerbs.requireValid(verb);
+        RelationshipType relationshipType = RelationshipType.parse(verb);
+        // The edge type is always an enum name, never free-form input.
+        String type = relationshipType.name();
         double checkedCertainty = Certainty.validate(certainty);
         StatementTime checkedTime = time == null || time.isOpen() ? null : time;
         try (Session session = driver.session()) {
@@ -261,10 +263,10 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
                         sameId = row.get("rid").asString();
                         continue;
                     }
-                    if (RelationshipVerbs.isSingleValued(verb)
+                    if (relationshipType.singleValued()
                             && TimeRange.resolve(existingTime, id -> periodTicks(tx, id)).overlaps(range)) {
                         throw new OverlappingStatementException(
-                                subjectId + " already has " + verb + " " + existingObject + " during part of that time");
+                                subjectId + " already has " + type + " " + existingObject + " during part of that time");
                     }
                 }
                 Map<String, Object> props = edgeProperties(checkedTime, checkedCertainty);
@@ -275,7 +277,7 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
                     tx.run("MATCH (s:Entity {id: $s}), (o:Entity {id: $o}) CREATE (s)-[r:" + type + "]->(o) SET r = $props",
                             Map.of("s", subjectId, "o", objectId, "props", props)).consume();
                 }
-                return Optional.of(new Relationship(verb, objectId, checkedTime, checkedCertainty));
+                return Optional.of(new Relationship(type, objectId, checkedTime, checkedCertainty));
             });
         }
     }
@@ -302,7 +304,7 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
                     Map<String, Object> props = row.get("props").asMap();
                     StatementTime time = timeOf(props);
                     if (holdsAt(tx, time, atTick)) {
-                        out.add(new Relationship(row.get("verb").asString(), row.get("object").asString(),
+                        out.add(new Relationship(RelationshipType.canonicalOrSelf(row.get("verb").asString()), row.get("object").asString(),
                                 time, certaintyOf(props)));
                     }
                 }
@@ -318,13 +320,15 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
 
     @Override
     public List<Entity> findByRelationship(String verb, String objectId, Long atTick) {
-        if (verb == null || objectId == null || !RelationshipVerbs.isValid(verb)) {
+        Optional<RelationshipType> relationshipType = RelationshipType.find(verb);
+        if (relationshipType.isEmpty() || objectId == null) {
             return List.of();
         }
+        String type = relationshipType.get().name();
         try (Session session = driver.session()) {
             return session.executeRead(tx -> {
                 Set<String> subjects = new LinkedHashSet<>();
-                for (Record row : tx.run("MATCH (s:Entity)-[r:" + verb + "]->(:Entity {id: $o}) "
+                for (Record row : tx.run("MATCH (s:Entity)-[r:" + type + "]->(:Entity {id: $o}) "
                         + "RETURN s.id AS subject, properties(r) AS props ORDER BY subject",
                         Map.of("o", objectId)).list()) {
                     if (holdsAt(tx, timeOf(row.get("props").asMap()), atTick)) {

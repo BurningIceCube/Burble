@@ -121,10 +121,10 @@ class Neo4jEntityRepositoryAdapterTest {
         });
 
         // An untimed, certain edge has no properties at all.
-        entities.addRelationship("aldric", "MEMBER_OF", "mira");
-        assertThat(run("MATCH (:Entity {id:'aldric'})-[r:MEMBER_OF]->() RETURN properties(r) AS p"))
+        entities.addRelationship("mira", CARRIED_BY, "aldric");
+        assertThat(run("MATCH (:Entity {id:'mira'})-[r:CARRIED_BY]->() RETURN properties(r) AS p"))
                 .singleElement().satisfies(row -> assertThat(row.get("p").asMap()).isEmpty());
-        assertThat(entities.findRelationships("aldric")).containsExactly(new Relationship("MEMBER_OF", "mira"));
+        assertThat(entities.findRelationships("mira")).containsExactly(new Relationship(CARRIED_BY, "aldric"));
     }
 
     @Test
@@ -195,6 +195,24 @@ class Neo4jEntityRepositoryAdapterTest {
         assertThat(entities.findRelationships("sword")).isEmpty();
         assertThat(entities.addRelationship("missing", CARRIED_BY, "aldric")).isEmpty();
         assertThat(entities.addRelationship("sword", CARRIED_BY, "missing")).isEmpty();
+    }
+
+    @Test
+    void verbsAreMatchedCaseInsensitivelyAndStoredUpperCase() {
+        assertThat(entities.addRelationship("sword", " carried_by ", "aldric", StatementTime.between(1, 5), null))
+                .hasValueSatisfying(r -> assertThat(r.verb()).isEqualTo(CARRIED_BY));
+        assertThat(entities.addRelationship("sword", "Carried_By", "mira", StatementTime.from(5), null)).isPresent();
+        assertThat(run("MATCH ()-[r]->(:Entity) WHERE type(r) <> 'IS_A' RETURN DISTINCT type(r) AS t"))
+                .extracting(row -> row.get("t").asString()).containsExactly(CARRIED_BY);
+        assertThat(entities.findRelationships("sword")).extracting(Relationship::verb).containsOnly(CARRIED_BY);
+        assertThat(entities.findByRelationship("carried_by", "aldric", 2L)).extracting(Entity::guid).containsExactly("sword");
+        // Mixed case still overlaps with the stored upper-case edge.
+        assertThatThrownBy(() -> entities.addRelationship("sword", "carried_BY", "mira", StatementTime.between(2, 3), null))
+                .isInstanceOf(OverlappingStatementException.class);
+        assertThatThrownBy(() -> entities.addRelationship("sword", "MEMBER_OF", "aldric"))
+                .isInstanceOf(InvalidStatementException.class)
+                .hasMessageContaining("Allowed values: CARRIED_BY");
+        assertThat(entities.findByRelationship("MEMBER_OF", "aldric")).isEmpty();
     }
 
     @Test
