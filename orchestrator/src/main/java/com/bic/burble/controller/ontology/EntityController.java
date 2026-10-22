@@ -1,6 +1,10 @@
 package com.bic.burble.controller.ontology;
 
+import com.bic.burble.ontology.domain.ArchetypeStatement;
 import com.bic.burble.ontology.domain.Entity;
+import com.bic.burble.ontology.domain.entity.ArchetypeRequest;
+import com.bic.burble.ontology.domain.statement.StatementTime;
+import com.bic.burble.ontology.domain.statement.TimeBound;
 import com.bic.burble.ontology.domain.Relationship;
 import com.bic.burble.ontology.domain.entity.AddRelationshipRequest;
 import com.bic.burble.ontology.domain.entity.CreateEntityRequest;
@@ -202,6 +206,65 @@ public class EntityController {
         return entityService.findByRelationship(verb, objectId, atTick).stream()
                 .filter(entity -> worldId.equals(entity.worldId()))
                 .toList();
+    }
+
+    @Operation(summary = "List an entity's archetypes",
+            description = "Returns the entity's IS_A statements with their time and certainty. Untimed statements hold always.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "IS_A statements on the entity"),
+        @ApiResponse(responseCode = "404", description = "Entity was not found in this world")
+    })
+    @GetMapping("/{entityId}/archetype")
+    public ResponseEntity<List<ArchetypeStatement>> getArchetypes(
+            @PathVariable("worldId") String worldId,
+            @PathVariable("entityId") String entityId,
+            @Parameter(name = "atTick", description = "Only archetypes that hold at this tick. Leave out for all.")
+            @RequestParam(value = "atTick", required = false) Long atTick) {
+        log.info("GET  /api/v1/ontology/world/{}/entity/{}/archetype atTick={}", worldId, entityId, atTick);
+        return entityService.findArchetypes(worldId, entityId, atTick)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @Operation(summary = "Add one archetype statement",
+            description = "Adds an IS_A statement with an optional time and certainty. The same archetype may be added again for a time that does not overlap. The same archetype and time again updates the certainty.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "IS_A statement stored"),
+        @ApiResponse(responseCode = "400", description = "Unknown archetype, certainty outside 0..1, unknown period, or a range that ends before it starts"),
+        @ApiResponse(responseCode = "409", description = "The entity already has this archetype during part of that time"),
+        @ApiResponse(responseCode = "404", description = "Entity was not found in this world")
+    })
+    @PostMapping("/{entityId}/archetype")
+    public ResponseEntity<ArchetypeStatement> addArchetype(
+            @PathVariable("worldId") String worldId,
+            @PathVariable("entityId") String entityId,
+            @RequestBody ArchetypeRequest request) {
+        log.info("POST /api/v1/ontology/world/{}/entity/{}/archetype - {}", worldId, entityId, request);
+        return entityService.addArchetype(worldId, entityId, request)
+                .map(statement -> ResponseEntity.status(HttpStatus.CREATED).body(statement))
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @Operation(summary = "Remove one archetype statement",
+            description = "Removes the IS_A statement with this archetype and exactly this time. Leave all time parameters out to remove the untimed one.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "IS_A statement removed"),
+        @ApiResponse(responseCode = "404", description = "Entity or matching statement was not found")
+    })
+    @DeleteMapping("/{entityId}/archetype/{archetype}")
+    public ResponseEntity<Void> removeArchetype(
+            @PathVariable("worldId") String worldId,
+            @PathVariable("entityId") String entityId,
+            @PathVariable("archetype") String archetype,
+            @RequestParam(value = "startTick", required = false) Long startTick,
+            @RequestParam(value = "startPeriod", required = false) String startPeriod,
+            @RequestParam(value = "endTick", required = false) Long endTick,
+            @RequestParam(value = "endPeriod", required = false) String endPeriod) {
+        log.info("DELETE /api/v1/ontology/world/{}/entity/{}/archetype/{}", worldId, entityId, archetype);
+        StatementTime time = new StatementTime(new TimeBound(startTick, startPeriod), new TimeBound(endTick, endPeriod));
+        return entityService.removeArchetype(worldId, entityId, archetype, time)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
     }
 
     /** Unknown relationship verbs, bad certainty or bad time ranges are client errors. */
