@@ -127,8 +127,13 @@ class Neo4jOntologyApiTest {
                         .content("{\"verb\":\"CARRIED_BY\",\"objectId\":\"%s\",\"time\":{\"start\":{\"period\":\"%s\"}}}".formatted(miraId, heroId)))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(post(rel, worldId, swordId).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"verb\":\"CARRIED_BY\",\"objectId\":\"%s\",\"time\":{\"start\":{\"tick\":300}}}".formatted(miraId)))
-                .andExpect(status().isCreated());
+                        .content("{\"verb\":\" carried_By \",\"objectId\":\"%s\",\"time\":{\"start\":{\"tick\":300}}}".formatted(miraId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.verb").value("CARRIED_BY"));
+        mockMvc.perform(post(rel, worldId, swordId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"MEMBER_OF\",\"objectId\":\"%s\"}".formatted(miraId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Allowed values: CARRIED_BY")));
 
         mockMvc.perform(get(rel, worldId, swordId).param("atTick", "250"))
                 .andExpect(jsonPath("$.length()").value(1))
@@ -139,7 +144,7 @@ class Neo4jOntologyApiTest {
         mockMvc.perform(get(rel, worldId, heroId))
                 .andExpect(jsonPath("$.length()").value(0));
         mockMvc.perform(get(base + "/relationship", worldId)
-                        .param("verb", "CARRIED_BY").param("objectId", heroId).param("atTick", "299"))
+                        .param("verb", "carried_by").param("objectId", heroId).param("atTick", "299"))
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].guid").value(swordId));
         mockMvc.perform(get(base + "/relationship", worldId)

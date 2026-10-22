@@ -242,4 +242,43 @@ class JsonOntologyApiTest {
                         .param("verb", "CARRIED_BY").param("objectId", heroId).param("atTick", "300"))
                 .andExpect(jsonPath("$.length()").value(0));
     }
+
+    @Test
+    void relationshipVerbsAreMatchedCaseInsensitivelyAndUnknownOnesAreRejected() throws Exception {
+        Files.deleteIfExists(FILE);
+        String worldId = create("/api/v1/ontology/world", "{\"name\":\"Aethelgard\"}", "worldId");
+        String base = "/api/v1/ontology/world/{worldId}/entity";
+        String heroId = create(base, "{\"name\":\"Aldric\",\"character\":true}", "entityId", worldId);
+        String swordId = create(base, "{\"name\":\"Sword\",\"item\":{\"portable\":true,\"unique\":true}}", "entityId", worldId);
+        String rel = base + "/{entityId}/relationship";
+
+        mockMvc.perform(post(rel, worldId, swordId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\" Carried_by \",\"objectId\":\"%s\"}".formatted(heroId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.verb").value("CARRIED_BY"));
+        mockMvc.perform(get(rel, worldId, swordId))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].verb").value("CARRIED_BY"));
+        mockMvc.perform(get(base + "/relationship", worldId).param("verb", "carried_by").param("objectId", heroId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].guid").value(swordId));
+
+        mockMvc.perform(post(rel, worldId, swordId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"MEMBER_OF\",\"objectId\":\"%s\"}".formatted(heroId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Allowed values: CARRIED_BY")));
+        mockMvc.perform(post(rel, worldId, swordId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"IS_A\",\"objectId\":\"%s\"}".formatted(heroId)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get(base + "/relationship", worldId).param("verb", "MEMBER_OF").param("objectId", heroId))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Allowed values: CARRIED_BY")));
+
+        JsonNode root = JsonMapper.builder().build().readTree(FILE);
+        for (JsonNode entity : root.get("entities")) {
+            for (JsonNode statement : entity.get("statements")) {
+                assertThat(statement.get("verb").asString()).isIn("IS_A", "CARRIED_BY");
+            }
+        }
+    }
 }
