@@ -131,7 +131,7 @@ class Neo4jOntologyApiTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.verb").value("CARRIED_BY"));
         mockMvc.perform(post(rel, worldId, swordId).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"verb\":\"MEMBER_OF\",\"objectId\":\"%s\"}".formatted(miraId)))
+                        .content("{\"verb\":\"FLIES_WITH\",\"objectId\":\"%s\"}".formatted(miraId)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Allowed values: CARRIED_BY")));
 

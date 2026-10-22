@@ -209,10 +209,10 @@ class Neo4jEntityRepositoryAdapterTest {
         // Mixed case still overlaps with the stored upper-case edge.
         assertThatThrownBy(() -> entities.addRelationship("sword", "carried_BY", "mira", StatementTime.between(2, 3), null))
                 .isInstanceOf(OverlappingStatementException.class);
-        assertThatThrownBy(() -> entities.addRelationship("sword", "MEMBER_OF", "aldric"))
+        assertThatThrownBy(() -> entities.addRelationship("sword", "FLIES_WITH", "aldric"))
                 .isInstanceOf(InvalidStatementException.class)
                 .hasMessageContaining("Allowed values: CARRIED_BY");
-        assertThat(entities.findByRelationship("MEMBER_OF", "aldric")).isEmpty();
+        assertThat(entities.findByRelationship("FLIES_WITH", "aldric")).isEmpty();
     }
 
     @Test

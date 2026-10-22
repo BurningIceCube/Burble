@@ -20,6 +20,7 @@ It is designed to support:
 
 - [Ontology Overview](ontology/overview.md)
 - [Formal Archetypes](ontology/archetypes.md)
+- [Relationships](ontology/relationships.md)
 - [Composites](ontology/composites.md)
 - [Classification Guide](ontology/classification.md)
 - [Architecture & Services](architecture/services.md)
