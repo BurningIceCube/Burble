@@ -2,6 +2,7 @@ package com.bic.burble.ontology.service.impl;
 
 import com.bic.burble.ontology.domain.Entity;
 import com.bic.burble.ontology.domain.Relationship;
+import com.bic.burble.ontology.domain.RelationshipVerbs;
 import com.bic.burble.ontology.domain.entity.CreateEntityRequest;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacet;
 import com.bic.burble.ontology.domain.facet.ArchetypeFacets;
@@ -146,6 +147,7 @@ public class DefaultEntityService implements EntityService {
     public Optional<Relationship> addRelationship(String worldId, String subjectId, String verb, String objectId,
                                                   StatementTime time, Double certainty) {
         log.debug("Adding relationship in worldId={} subject={} verb={} object={}", worldId, subjectId, verb, objectId);
+        RelationshipVerbs.requireValid(verb);
         Optional<Entity> subject = entityRepository.findById(subjectId);
         Optional<Entity> object = entityRepository.findById(objectId);
         if (subject.isEmpty() || object.isEmpty()) {

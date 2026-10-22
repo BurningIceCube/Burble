@@ -92,6 +92,7 @@ public class JsonEntityRepositoryAdapter implements EntityRepository {
         if (subjectId == null || verb == null || verb.isBlank() || objectId == null || objectId.isBlank()) {
             return Optional.empty();
         }
+        RelationshipVerbs.requireValid(verb);
         double checkedCertainty = Certainty.validate(certainty);
         StatementTime checkedTime = time == null || time.isOpen() ? null : time;
         return store.update(graph -> {

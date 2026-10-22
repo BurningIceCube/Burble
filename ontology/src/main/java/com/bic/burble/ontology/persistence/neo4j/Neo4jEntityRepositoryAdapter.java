@@ -35,7 +35,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * Neo4j implementation of {@link EntityRepository}, with the same behaviour
@@ -66,7 +65,6 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
     private static final Logger log = LoggerFactory.getLogger(Neo4jEntityRepositoryAdapter.class);
 
     static final String IS_A = "IS_A";
-    private static final Pattern VERB = Pattern.compile("[A-Z][A-Z0-9_]*");
     /** Archetypes with their own properties get a node per entity instead of a shared node. */
     private static final Set<String> OWNED_ARCHETYPES = Set.of("Item", "Period");
 
@@ -238,7 +236,7 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
         if (subjectId == null || verb == null || verb.isBlank() || objectId == null || objectId.isBlank()) {
             return Optional.empty();
         }
-        String type = relationshipType(verb);
+        String type = RelationshipVerbs.requireValid(verb);
         double checkedCertainty = Certainty.validate(certainty);
         StatementTime checkedTime = time == null || time.isOpen() ? null : time;
         try (Session session = driver.session()) {
@@ -320,7 +318,7 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
 
     @Override
     public List<Entity> findByRelationship(String verb, String objectId, Long atTick) {
-        if (verb == null || objectId == null || !VERB.matcher(verb).matches()) {
+        if (verb == null || objectId == null || !RelationshipVerbs.isValid(verb)) {
             return List.of();
         }
         try (Session session = driver.session()) {
@@ -342,14 +340,6 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
     }
 
     // ----- helpers -----
-
-    private static String relationshipType(String verb) {
-        if (!VERB.matcher(verb).matches() || IS_A.equals(verb)) {
-            throw new InvalidStatementException(
-                    "Verb must be upper case letters, digits and underscores, and not IS_A: " + verb);
-        }
-        return verb;
-    }
 
     private boolean holdsAt(TransactionContext tx, StatementTime time, Long atTick) {
         return atTick == null || TimeRange.resolve(time, id -> periodTicks(tx, id)).contains(atTick);
