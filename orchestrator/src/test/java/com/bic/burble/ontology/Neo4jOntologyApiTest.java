@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -150,5 +151,60 @@ class Neo4jOntologyApiTest {
         mockMvc.perform(get(base + "/relationship", worldId)
                         .param("verb", "CARRIED_BY").param("objectId", heroId).param("atTick", "300"))
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void timedArchetypesThroughTheApi() throws Exception {
+        String worldId = create("/api/v1/ontology/world", "{\"name\":\"Timed\"}", "worldId");
+        String base = "/api/v1/ontology/world/{worldId}/entity";
+        // Plain names still work exactly as before; objects add time and certainty.
+        String hero = create(base, """
+                {"name":"Hero","archetypes":["Trait", {"archetype":"Character","time":{"start":{"tick":10},"end":{"tick":50}},"certainty":0.9}]}
+                """, "entityId", worldId);
+        String town = create(base, "{\"name\":\"Town\",\"archetypes\":[\"Location\"]}", "entityId", worldId);
+
+        mockMvc.perform(get(base + "/{id}/archetype", worldId, hero))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].archetype").value("Character"))
+                .andExpect(jsonPath("$[0].time.start.tick").value(10))
+                .andExpect(jsonPath("$[0].time.open").doesNotExist())
+                .andExpect(jsonPath("$[0].time.start.empty").doesNotExist())
+                .andExpect(jsonPath("$[0].certainty").value(0.9))
+                .andExpect(jsonPath("$[1].archetype").value("Trait"))
+                .andExpect(jsonPath("$[1].time").doesNotExist());
+        mockMvc.perform(get(base + "/{id}/archetype", worldId, hero).param("atTick", "60"))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].archetype").value("Trait"));
+        mockMvc.perform(get(base + "/{id}", worldId, hero))
+                .andExpect(jsonPath("$.archetypes.length()").value(2));
+
+        // The relationship must sit inside the Character range.
+        mockMvc.perform(post(base + "/{id}/relationship", worldId, hero).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"LOCATED_IN\",\"objectId\":\"" + town + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString(
+                        "it is not Character from the beginning until tick 10")));
+        mockMvc.perform(post(base + "/{id}/relationship", worldId, hero).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"LOCATED_IN\",\"objectId\":\"" + town + "\",\"time\":{\"start\":{\"tick\":20},\"end\":{\"tick\":30}}}"))
+                .andExpect(status().isCreated());
+
+        // Add a later Character range, reject an overlapping one, then remove it again.
+        mockMvc.perform(post(base + "/{id}/archetype", worldId, hero).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archetype\":\"Character\",\"time\":{\"start\":{\"tick\":50}}}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.certainty").value(1.0));
+        mockMvc.perform(post(base + "/{id}/archetype", worldId, hero).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archetype\":\"Character\",\"time\":{\"start\":{\"tick\":40}}}"))
+                .andExpect(status().isConflict());
+        mockMvc.perform(post(base + "/{id}/archetype", worldId, hero).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"archetype\":\"Dragon\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(delete(base + "/{id}/archetype/Character", worldId, hero).param("startTick", "50"))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(delete(base + "/{id}/archetype/Character", worldId, hero).param("startTick", "50"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get(base + "/{id}/archetype", worldId, hero).param("atTick", "60"))
+                .andExpect(jsonPath("$.length()").value(1));
     }
 }
