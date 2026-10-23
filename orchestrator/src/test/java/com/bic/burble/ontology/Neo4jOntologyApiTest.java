@@ -82,9 +82,6 @@ class Neo4jOntologyApiTest {
         registry.add("burble.ontology.persistance.world", () -> "json");
         registry.add("burble.ontology.persistance.entity", () -> "neo4j");
         registry.add("burble.ontology.persistance.json.path", () -> worlds.toAbsolutePath().toString());
-        // application.yml's JSON-only section switches Neo4j auto-configuration
-        // off; it is matched before test properties apply, so clear it here.
-        registry.add("spring.autoconfigure.exclude", () -> "");
         registry.add("spring.neo4j.uri", () -> uri);
         registry.add("spring.neo4j.authentication.username", () -> user);
         registry.add("spring.neo4j.authentication.password", () -> password);

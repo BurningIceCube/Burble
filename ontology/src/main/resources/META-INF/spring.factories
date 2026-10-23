@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.AutoConfigurationImportFilter=\
+com.bic.burble.ontology.config.Neo4jAutoConfigurationFilter

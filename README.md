@@ -110,7 +110,7 @@ If you'd rather run the app directly with Gradle (e.g. for faster iteration / de
 
 **Prerequisites:**
 
-- Java 21+ installed (JDK 21 LTS or newer recommended)
+- JDK 25 (the Gradle toolchain targets Java 25)
 - Docker, only if entity storage is switched to Neo4j (see [Neo4j](#neo4j-optional-entity-persistence) below)
 
 #### Storage
@@ -165,6 +165,25 @@ To stop/remove the container later:
 docker stop burble-neo4j && docker rm burble-neo4j
 ```
 
+#### Choosing Neo4j at startup
+
+Neo4j is used only when `burble.ontology.persistance.entity` is `neo4j`. In JSON mode, Spring Boot's Neo4j auto-configuration is left out completely: there is no driver, no Neo4j health check, and no connection attempt. That is done by `Neo4jAutoConfigurationFilter` in the ontology module. To use Neo4j you don't need to change any `spring.autoconfigure.exclude` settings. Set the property and the usual `spring.neo4j.*` connection settings, in `application.yml`, on the command line, or as environment variables:
+
+```bash
+# command line
+./gradlew bootRun --args='--burble.ontology.persistance.entity=neo4j --spring.neo4j.uri=bolt://localhost:7687'
+
+# or a built jar with environment variables
+./gradlew :orchestrator:bootJar
+BURBLE_ONTOLOGY_PERSISTANCE_ENTITY=neo4j \
+SPRING_NEO4J_URI=bolt://localhost:7687 \
+SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j \
+SPRING_NEO4J_AUTHENTICATION_PASSWORD=<your-password> \
+java -jar orchestrator/build/libs/orchestrator-0.0.1-SNAPSHOT.jar
+```
+
+Leave out the username and password when Neo4j runs with `NEO4J_AUTH=none`.
+
 #### Build and Run
 
 Run via Gradle wrapper:
@@ -178,6 +197,18 @@ Run via Gradle wrapper:
 ```
 
 The application starts on `http://localhost:8080`.
+
+### Running the tests
+
+```bash
+./gradlew :ontology:test :orchestrator:test
+```
+
+Tests that need Neo4j use the server given by `NEO4J_TEST_URI` (with `NEO4J_TEST_USER`, default `neo4j`, and `NEO4J_TEST_PASSWORD`). Without it, some Neo4j tests start one with Testcontainers when Docker is available, and the rest are skipped. For example:
+
+```bash
+NEO4J_TEST_URI=bolt://localhost:7687 NEO4J_TEST_PASSWORD=<your-password> ./gradlew :ontology:test :orchestrator:test
+```
 
 ### Endpoints 
 
