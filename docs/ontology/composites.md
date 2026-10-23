@@ -65,28 +65,36 @@ A section that doesn't fit the root is just empty. For example, Ecology's specie
 | **Economy** | System | rules | `<-COMPONENT_OF- (Rule)` |
 | | | participants | `<-GOVERNED_BY- (Organization)` |
 | | | regions | `<-GOVERNED_BY- (Location)` |
-| | | resources | `<-GOVERNED_BY- (Location) -MADE_OF->` |
+| | | resources | `-USES->` |
+| | | regional-resources | `<-GOVERNED_BY- (Location) -MADE_OF->` |
 | | | titles | `<-GOVERNED_BY- (Organization) <-HELD_BY- (Title)` |
 | **Ecology** | Location or Species | inhabitants | `<-LOCATED_IN- (Character)` |
-| | | species | `<-LOCATED_IN- (Character) -OF_SPECIES->` |
+| | | species | `<-INHABITS-` |
+| | | visiting-species | `<-LOCATED_IN- (Character) -OF_SPECIES->` |
 | | | materials | `-MADE_OF->` |
 | | | systems | `-GOVERNED_BY-> (System)` |
 | | | subregions | `<-PART_OF- (Location)` |
 | | | members | `<-OF_SPECIES-` |
-| | | habitats | `<-OF_SPECIES- -LOCATED_IN->` |
+| | | habitats | `-INHABITS->` |
+| | | member-locations | `<-OF_SPECIES- -LOCATED_IN->` |
 | **Technology** | System | techniques | `<-COMPONENT_OF- (Action)` |
 | | | principles | `<-COMPONENT_OF- (Logic)` |
 | | | devices | `<-COMPONENT_OF- (Action) <-CAN_PERFORM- (Item)` |
 | | | practitioners | `<-COMPONENT_OF- (Action) <-CAN_PERFORM- (Character)` |
+| | | materials | `-USES->` |
+| | | technique-materials | `<-COMPONENT_OF- (Action) -USES->` |
 | **Magic System** | System | laws | `<-COMPONENT_OF- (Logic)` |
 | | | spells | `<-COMPONENT_OF- (Action)` |
 | | | rules | `<-COMPONENT_OF- (Rule)` |
 | | | casters | `<-COMPONENT_OF- (Action) <-CAN_PERFORM- (Character)` |
 | | | gifted-species | `<-COMPONENT_OF- (Action) <-CAN_PERFORM- (Species)` |
 | | | artifacts | `<-COMPONENT_OF- (Action) <-CAN_PERFORM- (Item)` |
+| | | reagents | `-USES->` |
+| | | spell-reagents | `<-COMPONENT_OF- (Action) -USES->` |
 | **Language** | System or Concept | vocabulary | `<-COMPONENT_OF- (Concept)` |
 | | | grammar | `<-COMPONENT_OF- (Logic or Rule)` |
-| | | speakers | `<-KNOWS- (Character)` |
+| | | speakers | `<-SPEAKS-` |
+| | | knowers | `<-KNOWS- (Character)` |
 | | | worldviews | `-COMPONENT_OF-> (Worldview)` |
 | **Government** | Organization or System | officials | `<-MEMBER_OF- (Character)` |
 | | | offices | `<-HELD_BY- (Title)` |
@@ -100,17 +108,21 @@ A section that doesn't fit the root is just empty. For example, Ecology's specie
 | | | branches | `<-PART_OF- (Organization)` |
 | **Cosmology** | Location, Logic or Worldview | realms | `<-PART_OF- (Location)` |
 | | | within | `-PART_OF-> (Location)` |
-| | | ages | `<-LOCATED_IN- (Event) -DURING->` |
+| | | ages | `-EXISTS_DURING->` |
+| | | event-ages | `<-LOCATED_IN- (Event) -DURING->` |
 | | | laws | `<-COMPONENT_OF- (Logic)` |
 | | | ideas | `<-COMPONENT_OF- (Concept)` |
 | | | frameworks | `-COMPONENT_OF->` |
 
 ### Gaps
 
-Some supporting archetypes in the first table aren't directly linked by any of the current [relationship types](relationships.md). They are either reached indirectly or not at all:
+`SPEAKS`, `INHABITS`, `USES` and `EXISTS_DURING` were added so each supporting archetype in the first table can be reached directly:
 
-- **Economy, Substance:** only through the regions it governs (`MADE_OF`). Nothing links a System or Organization to the goods it trades or produces.
-- **Ecology, Species and Location:** linked only through characters (a character `LOCATED_IN` a place and `OF_SPECIES` a species). `LOCATED_IN` doesn't allow a Species subject, so a species can't have a habitat of its own.
-- **Technology and Magic System, Substance:** no relationship links a System, Action or Item to the materials or reagents it uses. The path Action → Item → `MADE_OF` would take three steps, and sections allow at most two.
-- **Language:** there is no "speaks" relationship. Speakers are characters who `KNOWS` the language, which only works when the root is a Concept. A System can't be `COMPONENT_OF` a Worldview, so the worldviews section only works on a Concept root.
-- **Cosmology, Period:** only through events located in a place (`LOCATED_IN` then `DURING`). Nothing links a Location or Worldview directly to a Period.
+- Language speakers, for either a System or a Concept root, use `SPEAKS`.
+- Ecology links species and places with `INHABITS`.
+- Economy, Technology and Magic System reach Substance with `USES`.
+- Cosmology reaches Period with `EXISTS_DURING`.
+
+The older indirect paths are kept as extra sections, such as the species of the characters located in a place, or the periods of events that happened there.
+
+One gap is left. The Language worldviews section only works on a Concept root. `COMPONENT_OF` does not allow a System subject, and widening it would let any System be part of a Worldview, which is a bigger change to the catalog than this needs.

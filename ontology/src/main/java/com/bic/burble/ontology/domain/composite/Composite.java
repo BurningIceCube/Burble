@@ -10,6 +10,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static com.bic.burble.ontology.domain.RelationshipType.BELIEVES;
+import static com.bic.burble.ontology.domain.RelationshipType.EXISTS_DURING;
+import static com.bic.burble.ontology.domain.RelationshipType.USES;
+import static com.bic.burble.ontology.domain.RelationshipType.INHABITS;
+import static com.bic.burble.ontology.domain.RelationshipType.SPEAKS;
 import static com.bic.burble.ontology.domain.RelationshipType.CAN_PERFORM;
 import static com.bic.burble.ontology.domain.RelationshipType.COMPONENT_OF;
 import static com.bic.burble.ontology.domain.RelationshipType.DURING;
@@ -64,25 +68,30 @@ public enum Composite {
             section("rules", "Rules", "Rules that make up the system", in(COMPONENT_OF, "Rule")),
             section("participants", "Participants", "Organizations governed by it", in(GOVERNED_BY, "Organization")),
             section("regions", "Regions", "Locations governed by it", in(GOVERNED_BY, "Location")),
-            section("resources", "Resources", "What those regions are made of", in(GOVERNED_BY, "Location"), out(MADE_OF)),
+            section("resources", "Resources", "Substances the system uses", out(USES)),
+            section("regional-resources", "Regional resources", "What the regions it governs are made of", in(GOVERNED_BY, "Location"), out(MADE_OF)),
             section("titles", "Titles", "Titles held by the participating organizations", in(GOVERNED_BY, "Organization"), in(HELD_BY, "Title"))),
 
     ECOLOGY("Ecology", "The living things of a place, or the places a species lives.",
             roots("Location", "Species"),
             section("inhabitants", "Inhabitants", "Characters located here", in(LOCATED_IN, "Character")),
-            section("species", "Species", "Species of the characters located here", in(LOCATED_IN, "Character"), out(OF_SPECIES)),
+            section("species", "Species", "Species that inhabit this place", in(INHABITS)),
+            section("visiting-species", "Species of inhabitants", "Species of the characters located here", in(LOCATED_IN, "Character"), out(OF_SPECIES)),
             section("materials", "Materials", "Substances this place is made of", out(MADE_OF)),
             section("systems", "Systems", "Systems that govern this place", out(GOVERNED_BY, "System")),
             section("subregions", "Subregions", "Locations that are part of this one", in(PART_OF, "Location")),
             section("members", "Members", "Characters of this species", in(OF_SPECIES)),
-            section("habitats", "Habitats", "Where characters of this species are located", in(OF_SPECIES), out(LOCATED_IN))),
+            section("habitats", "Habitats", "Locations this species inhabits", out(INHABITS)),
+            section("member-locations", "Where members are", "Where characters of this species are located", in(OF_SPECIES), out(LOCATED_IN))),
 
     TECHNOLOGY("Technology", "What a system lets people build and do, and the principles behind it.",
             roots("System"),
             section("techniques", "Techniques", "Actions that are part of the system", in(COMPONENT_OF, "Action")),
             section("principles", "Principles", "Logic that is part of the system", in(COMPONENT_OF, "Logic")),
             section("devices", "Devices", "Items that can perform those techniques", in(COMPONENT_OF, "Action"), in(CAN_PERFORM, "Item")),
-            section("practitioners", "Practitioners", "Characters that can perform those techniques", in(COMPONENT_OF, "Action"), in(CAN_PERFORM, "Character"))),
+            section("practitioners", "Practitioners", "Characters that can perform those techniques", in(COMPONENT_OF, "Action"), in(CAN_PERFORM, "Character")),
+            section("materials", "Materials", "Substances the system uses", out(USES)),
+            section("technique-materials", "Technique materials", "Substances its techniques use", in(COMPONENT_OF, "Action"), out(USES))),
 
     MAGIC_SYSTEM("Magic System", "How magic works: its laws, spells, limits and who can use it.",
             roots("System"),
@@ -91,13 +100,16 @@ public enum Composite {
             section("rules", "Rules", "Rules that are part of the system", in(COMPONENT_OF, "Rule")),
             section("casters", "Casters", "Characters that can perform its spells", in(COMPONENT_OF, "Action"), in(CAN_PERFORM, "Character")),
             section("gifted-species", "Gifted species", "Species that can perform its spells", in(COMPONENT_OF, "Action"), in(CAN_PERFORM, "Species")),
-            section("artifacts", "Artifacts", "Items that can perform its spells", in(COMPONENT_OF, "Action"), in(CAN_PERFORM, "Item"))),
+            section("artifacts", "Artifacts", "Items that can perform its spells", in(COMPONENT_OF, "Action"), in(CAN_PERFORM, "Item")),
+            section("reagents", "Reagents", "Substances the system uses", out(USES)),
+            section("spell-reagents", "Spell reagents", "Substances its spells use", in(COMPONENT_OF, "Action"), out(USES))),
 
     LANGUAGE("Language", "A language: its words, grammar and who knows it.",
             roots("System", "Concept"),
             section("vocabulary", "Vocabulary", "Concepts that are part of it", in(COMPONENT_OF, "Concept")),
             section("grammar", "Grammar", "Rules and logic that are part of it", in(COMPONENT_OF, "Rule", "Logic")),
-            section("speakers", "Speakers", "Characters who know it", in(KNOWS, "Character")),
+            section("speakers", "Speakers", "Characters, organizations and species that speak it", in(SPEAKS)),
+            section("knowers", "Known by", "Characters who know it as a concept", in(KNOWS, "Character")),
             section("worldviews", "Worldviews", "Worldviews it is part of", out(COMPONENT_OF, "Worldview"))),
 
     GOVERNMENT("Government", "Who rules, by what offices and laws, and over what.",
@@ -117,7 +129,8 @@ public enum Composite {
             roots("Location", "Logic", "Worldview"),
             section("realms", "Realms", "Locations that are part of this one", in(PART_OF, "Location")),
             section("within", "Within", "Locations this one is part of", out(PART_OF, "Location")),
-            section("ages", "Ages", "Periods of events that happened here", in(LOCATED_IN, "Event"), out(DURING)),
+            section("ages", "Ages", "Periods this place, law or belief exists during", out(EXISTS_DURING)),
+            section("event-ages", "Ages of events", "Periods of events that happened here", in(LOCATED_IN, "Event"), out(DURING)),
             section("laws", "Laws of nature", "Logic that is part of this worldview", in(COMPONENT_OF, "Logic")),
             section("ideas", "Ideas", "Concepts that are part of this worldview", in(COMPONENT_OF, "Concept")),
             section("frameworks", "Frameworks", "Systems and worldviews this logic is part of", out(COMPONENT_OF)));
