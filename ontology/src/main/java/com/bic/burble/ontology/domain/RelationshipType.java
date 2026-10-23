@@ -62,7 +62,11 @@ public enum RelationshipType {
     KNOWS(MANY, rule(of(CHARACTER), of(CONCEPT))),
     GOVERNED_BY(MANY, rule(of(LOCATION, ORGANIZATION), of(RULE, SYSTEM))),
     COMPONENT_OF(MANY, rule(of(RULE, LOGIC, CONCEPT, ACTION), of(SYSTEM, WORLDVIEW))),
-    ENACTED_BY(SINGLE, rule(of(RULE), of(ORGANIZATION, CHARACTER)));
+    ENACTED_BY(SINGLE, rule(of(RULE), of(ORGANIZATION, CHARACTER))),
+    SPEAKS(MANY, rule(of(CHARACTER, ORGANIZATION, SPECIES), of(CONCEPT, SYSTEM))),
+    INHABITS(MANY, rule(of(SPECIES), of(LOCATION))),
+    USES(MANY, rule(of(SYSTEM, ACTION, ITEM), of(SUBSTANCE))),
+    EXISTS_DURING(MANY, rule(of(LOCATION, LOGIC, WORLDVIEW), of(PERIOD)));
 
     public enum Cardinality {
         /** One object per subject at a time; statements may not overlap. */

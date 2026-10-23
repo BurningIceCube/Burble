@@ -55,6 +55,10 @@ A relationship that breaks these rules is rejected with HTTP 400, and the messag
 | `GOVERNED_BY` | Location, Organization | Rule, System | many |
 | `COMPONENT_OF` | Rule, Logic, Concept, Action | System, Worldview | many |
 | `ENACTED_BY` | Rule | Organization, Character | single |
+| `SPEAKS` | Character, Organization, Species | Concept, System | many |
+| `INHABITS` | Species | Location | many (a species living in a place; individuals use `LOCATED_IN`) |
+| `USES` | System, Action, Item | Substance | many (materials, reagents, resources) |
+| `EXISTS_DURING` | Location, Logic, Worldview | Period | many (ages a realm, law of nature or belief belongs to) |
 
 ## Older data
 

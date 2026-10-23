@@ -347,4 +347,80 @@ class JsonOntologyApiTest {
         mockMvc.perform(get(base + "/{id}/archetype", worldId, hero).param("atTick", "60"))
                 .andExpect(jsonPath("$.length()").value(1));
     }
+
+    @Test
+    void compositeQueriesThroughTheApi() throws Exception {
+        String worldId = create("/api/v1/ontology/world", "{\"name\":\"Composites\"}", "worldId");
+        String base = "/api/v1/ontology/world/{worldId}/entity";
+        String faith = create(base, "{\"name\":\"Faith\",\"archetypes\":[\"Worldview\"]}", "entityId", worldId);
+        String guild = create(base, "{\"name\":\"Guild\",\"archetypes\":[\"Organization\"]}", "entityId", worldId);
+        String ann = create(base, "{\"name\":\"Ann\",\"archetypes\":[\"Character\"]}", "entityId", worldId);
+        mockMvc.perform(post(base + "/{id}/relationship", worldId, guild).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"BELIEVES\",\"objectId\":\"" + faith + "\",\"certainty\":0.8}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post(base + "/{id}/relationship", worldId, ann).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"BELIEVES\",\"objectId\":\"" + faith + "\",\"time\":{\"start\":{\"tick\":0},\"end\":{\"tick\":100}}}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post(base + "/{id}/relationship", worldId, ann).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"MEMBER_OF\",\"objectId\":\"" + guild + "\"}"))
+                .andExpect(status().isCreated());
+
+        String composites = "/api/v1/ontology/world/{worldId}/composite";
+        mockMvc.perform(get(composites, worldId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(9))
+                .andExpect(jsonPath("$[5].name").value("magic-system"))
+                .andExpect(jsonPath("$[1].rootArchetypes[0]").value("Worldview"))
+                .andExpect(jsonPath("$[1].sections[0].key").value("followers"));
+        mockMvc.perform(get(composites + "/{name}", worldId, "Religion"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(faith))
+                .andExpect(jsonPath("$[0].name").value("Faith"));
+        mockMvc.perform(get(composites + "/{name}", worldId, "Magic System"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(get(composites + "/{name}/{root}", worldId, "religion", faith))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.composite").value("religion"))
+                .andExpect(jsonPath("$.root.name").value("Faith"))
+                .andExpect(jsonPath("$.atTick").doesNotExist())
+                .andExpect(jsonPath("$.sections[0].key").value("followers"))
+                .andExpect(jsonPath("$.sections[0].entities[0].name").value("Ann"))
+                .andExpect(jsonPath("$.sections[1].entities[0].name").value("Guild"))
+                .andExpect(jsonPath("$.sections[1].entities[0].certainty").value(0.8))
+                .andExpect(jsonPath("$.sections[1].entities[0].archetypes[0]").value("Organization"))
+                .andExpect(jsonPath("$.sections[2].entities[0].via.length()").value(2))
+                .andExpect(jsonPath("$.sections[2].entities[0].via[1].verb").value("MEMBER_OF"));
+        mockMvc.perform(get(composites + "/{name}/{root}", worldId, "RELIGION", faith).param("atTick", "150"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.atTick").value(150))
+                .andExpect(jsonPath("$.sections[0].entities.length()").value(0));
+
+        mockMvc.perform(get(composites + "/{name}/{root}", worldId, "folklore", faith))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("Unknown composite")));
+        mockMvc.perform(get(composites + "/{name}", worldId, "folklore"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get(composites + "/{name}/{root}", worldId, "religion", guild))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("starts at an entity that is Worldview")));
+        mockMvc.perform(get(composites + "/{name}/{root}", worldId, "religion", "missing"))
+                .andExpect(status().isNotFound());
+
+        String common = create(base, "{\"name\":\"Common\",\"archetypes\":[\"System\"]}", "entityId", worldId);
+        mockMvc.perform(post(base + "/{id}/relationship", worldId, ann).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"speaks\",\"objectId\":\"" + common + "\"}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post(base + "/{id}/relationship", worldId, faith).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"SPEAKS\",\"objectId\":\"" + common + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("SPEAKS allows")));
+        mockMvc.perform(get(composites + "/{name}/{root}", worldId, "Language", common))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sections[2].key").value("speakers"))
+                .andExpect(jsonPath("$.sections[2].entities[0].name").value("Ann"))
+                .andExpect(jsonPath("$.sections[2].entities[0].via[0].verb").value("SPEAKS"));
+    }
 }
