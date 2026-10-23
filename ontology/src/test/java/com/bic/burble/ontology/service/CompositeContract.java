@@ -37,6 +37,7 @@ abstract class CompositeContract {
     protected DefaultCompositeService composites;
 
     protected String faith, guild, ann, bob, elf, tithe, prayer, town, magic, fireball, staff;
+    protected String common, mana, iron, forest, firstAge;
 
     protected abstract EntityRepository freshRepository();
 
@@ -69,6 +70,20 @@ abstract class CompositeContract {
         link(fireball, "COMPONENT_OF", magic, null, null);
         link(ann, "CAN_PERFORM", fireball, null, null);
         link(staff, "CAN_PERFORM", fireball, null, null);
+
+        // Relationship types that close the composite gaps.
+        common = create("Common", ArchetypeRequest.of("System"));
+        mana = create("Mana", ArchetypeRequest.of("Substance"));
+        iron = create("Iron", ArchetypeRequest.of("Substance"));
+        forest = create("Forest", ArchetypeRequest.of("Location"));
+        firstAge = create("First Age", ArchetypeRequest.of("Period"));
+        link(ann, "SPEAKS", common, null, null);
+        link(elf, "SPEAKS", common, null, 0.7);
+        link(guild, "SPEAKS", common, StatementTime.from(200), null);
+        link(elf, "INHABITS", forest, null, null);
+        link(magic, "USES", iron, null, null);
+        link(fireball, "USES", mana, null, null);
+        link(forest, "EXISTS_DURING", firstAge, null, null);
     }
 
     private String create(String name, ArchetypeRequest archetype) {
@@ -141,7 +156,7 @@ abstract class CompositeContract {
                 .filteredOn(entity -> entity.name().equals("Bob"))
                 .singleElement().satisfies(entity -> assertThat(entity.archetypes()).containsExactly("Character"));
         assertThat(composites.findRoots(WORLD, "ecology", null)).extracting(EntitySummary::name)
-                .containsExactly("Elf", "Town");
+                .containsExactly("Elf", "Forest", "Town");
     }
 
     @Test
@@ -150,8 +165,8 @@ abstract class CompositeContract {
         assertThat(names(view("government", guild, null), "laws")).containsExactly("Tithe");
         assertThat(names(view("government", guild, null), "ideology")).containsExactly("Faith");
         assertThat(names(view("ecology", town, null), "inhabitants")).containsExactly("Ann");
-        assertThat(names(view("ecology", town, null), "species")).containsExactly("Elf");
-        assertThat(names(view("ecology", elf, null), "habitats")).containsExactly("Town");
+        assertThat(names(view("ecology", town, null), "visiting-species")).containsExactly("Elf");
+        assertThat(names(view("ecology", elf, null), "member-locations")).containsExactly("Town");
         CompositeView arcana = view("Magic System", magic, null);
         assertThat(names(arcana, "spells")).containsExactly("Fireball");
         assertThat(names(arcana, "casters")).containsExactly("Ann");
@@ -160,11 +175,34 @@ abstract class CompositeContract {
     }
 
     @Test
+    void newRelationshipTypesFillTheFormerGaps() {
+        CompositeView language = view("language", common, null);
+        assertThat(names(language, "speakers")).containsExactly("Ann", "Elf", "Guild");
+        assertThat(section(language, "speakers").entities()).filteredOn(e -> e.name().equals("Elf"))
+                .singleElement().satisfies(e -> assertThat(e.certainty()).isEqualTo(0.7));
+        assertThat(names(view("language", common, 100L), "speakers")).containsExactly("Ann", "Elf");
+
+        assertThat(names(view("ecology", forest, null), "species")).containsExactly("Elf");
+        assertThat(names(view("ecology", elf, null), "habitats")).containsExactly("Forest");
+
+        CompositeView arcana = view("magic-system", magic, null);
+        assertThat(names(arcana, "reagents")).containsExactly("Iron");
+        assertThat(names(arcana, "spell-reagents")).containsExactly("Mana");
+        assertThat(section(arcana, "spell-reagents").entities().get(0).via())
+                .containsExactly(new Hop(fireball, "COMPONENT_OF", magic), new Hop(fireball, "USES", mana));
+        assertThat(names(view("technology", magic, null), "materials")).containsExactly("Iron");
+        assertThat(names(view("economy", magic, null), "resources")).containsExactly("Iron");
+
+        assertThat(names(view("cosmology", forest, null), "ages")).containsExactly("First Age");
+    }
+
+    @Test
     void discoveryListsRootsByArchetype() {
         assertThat(composites.findRoots(WORLD, "religion", null)).extracting(EntitySummary::name).containsExactly("Faith");
-        assertThat(composites.findRoots(WORLD, "magic_system", null)).extracting(EntitySummary::name).containsExactly("Arcana");
+        assertThat(composites.findRoots(WORLD, "magic_system", null)).extracting(EntitySummary::name)
+                .containsExactly("Arcana", "Common");
         assertThat(composites.findRoots(WORLD, "government", null)).extracting(EntitySummary::name)
-                .containsExactly("Arcana", "Guild");
+                .containsExactly("Arcana", "Common", "Guild");
         assertThat(composites.findRoots("other", "religion", null)).isEmpty();
         assertThat(composites.listComposites()).extracting(info -> info.name()).containsExactly(
                 "culture", "religion", "economy", "ecology", "technology", "magic-system", "language", "government", "cosmology");

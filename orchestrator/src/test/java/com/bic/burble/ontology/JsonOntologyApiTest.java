@@ -408,5 +408,19 @@ class JsonOntologyApiTest {
                 .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("starts at an entity that is Worldview")));
         mockMvc.perform(get(composites + "/{name}/{root}", worldId, "religion", "missing"))
                 .andExpect(status().isNotFound());
+
+        String common = create(base, "{\"name\":\"Common\",\"archetypes\":[\"System\"]}", "entityId", worldId);
+        mockMvc.perform(post(base + "/{id}/relationship", worldId, ann).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"speaks\",\"objectId\":\"" + common + "\"}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post(base + "/{id}/relationship", worldId, faith).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"verb\":\"SPEAKS\",\"objectId\":\"" + common + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(org.hamcrest.Matchers.containsString("SPEAKS allows")));
+        mockMvc.perform(get(composites + "/{name}/{root}", worldId, "Language", common))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sections[2].key").value("speakers"))
+                .andExpect(jsonPath("$.sections[2].entities[0].name").value("Ann"))
+                .andExpect(jsonPath("$.sections[2].entities[0].via[0].verb").value("SPEAKS"));
     }
 }
