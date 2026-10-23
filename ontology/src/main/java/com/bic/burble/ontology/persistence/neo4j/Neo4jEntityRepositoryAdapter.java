@@ -1,5 +1,6 @@
 package com.bic.burble.ontology.persistence.neo4j;
 
+import com.bic.burble.ontology.domain.ArchetypeStatement;
 import com.bic.burble.ontology.domain.Entity;
 import com.bic.burble.ontology.domain.Relationship;
 import com.bic.burble.ontology.domain.RelationshipType;
@@ -141,10 +142,6 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
 
     private void write(TransactionContext tx, Entity entity) {
         String id = entity.guid();
-        Map<String, Map<String, Object>> previousTiming = new HashMap<>();
-        tx.run("MATCH (:Entity {id: $id})-[r:IS_A]->(a:Archetype) RETURN a.name AS name, properties(r) AS props",
-                Map.of("id", id)).list().forEach(row ->
-                previousTiming.put(row.get("name").asString(), row.get("props").asMap()));
 
         Map<String, Object> props = new HashMap<>();
         props.put("id", id);
@@ -159,9 +156,7 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
                 SET e.worldId = $worldId, e.name = $name, e.description = $description, e.aliases = $aliases
                 """, props).consume();
 
-        if (entity.facets() == null) {
-            return;
-        }
+        Map<String, Map<String, Object>> archetypeProps = new HashMap<>();
         for (ArchetypeFacet facet : entity.facets()) {
             String name = ArchetypeFacets.nameOf(facet);
             Map<String, Object> archetype = new HashMap<>();
@@ -177,23 +172,36 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
                     archetype.put("endTick", period.endTick());
                 }
             }
-            Map<String, Object> timing = previousTiming.getOrDefault(name, Map.of());
-            Map<String, Object> params = Map.of("id", id, "props", archetype, "timing", timing, "name", name);
+            archetypeProps.put(name, archetype);
+            Map<String, Object> params = Map.of("id", id, "props", archetype, "name", name);
             // name is from the closed archetype list, so it is safe as a label.
             if (OWNED_ARCHETYPES.contains(name)) {
-                tx.run("MATCH (e:Entity {id: $id}) CREATE (e)-[r:IS_A]->(a:Archetype:" + name + ") "
-                        + "SET a = $props, a.owner = $id, r = $timing", params).consume();
+                tx.run("MATCH (e:Entity {id: $id}) CREATE (a:Archetype:" + name + ") "
+                        + "SET a = $props, a.owner = $id", params).consume();
             } else {
-                tx.run("MATCH (e:Entity {id: $id}) MERGE (a:Archetype:" + name + " {name: $name}) "
-                        + "CREATE (e)-[r:IS_A]->(a) SET r = $timing", params).consume();
+                tx.run("MERGE (a:Archetype:" + name + " {name: $name})", params).consume();
             }
+        }
+        // One IS_A edge per archetype statement, carrying its time and certainty.
+        for (ArchetypeStatement statement : entity.archetypes()) {
+            String name = statement.archetype();
+            if (!archetypeProps.containsKey(name)) {
+                continue;
+            }
+            Map<String, Object> params = Map.of("id", id, "name", name,
+                    "timing", edgeProperties(statement.time(), statement.certainty()));
+            String target = OWNED_ARCHETYPES.contains(name)
+                    ? "(a:Archetype:" + name + " {owner: $id})"
+                    : "(a:Archetype:" + name + " {name: $name})";
+            tx.run("MATCH (e:Entity {id: $id}), " + target + " CREATE (e)-[r:IS_A]->(a) SET r = $timing", params)
+                    .consume();
         }
     }
 
     private List<Entity> readEntities(TransactionContext tx, String match, Map<String, Object> params) {
         return tx.run(match + """
-                 OPTIONAL MATCH (e)-[:IS_A]->(a:Archetype)
-                 RETURN e, collect(properties(a)) AS archetypes
+                 OPTIONAL MATCH (e)-[r:IS_A]->(a:Archetype)
+                 RETURN e, collect(properties(a)) AS archetypes, collect(properties(r)) AS timings
                  ORDER BY e.id
                 """, params).list().stream().map(Neo4jEntityRepositoryAdapter::toEntity).toList();
     }
@@ -201,10 +209,18 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
     private static Entity toEntity(Record row) {
         Value e = row.get("e");
         Set<ArchetypeFacet> facets = new HashSet<>();
-        for (Value archetype : row.get("archetypes").values()) {
+        List<ArchetypeStatement> statements = new ArrayList<>();
+        List<Value> archetypes = row.get("archetypes").asList(v -> v);
+        List<Value> timings = row.get("timings").asList(v -> v);
+        for (int i = 0; i < archetypes.size(); i++) {
+            Value archetype = archetypes.get(i);
             String name = archetype.get("name").asString(null);
             if (name == null) {
                 continue;
+            }
+            if (ArchetypeFacets.isKnown(name) && i < timings.size()) {
+                Map<String, Object> timing = timings.get(i).asMap();
+                statements.add(new ArchetypeStatement(name, timeOf(timing), certaintyOf(timing)));
             }
             ArchetypeFacet facet = switch (name) {
                 case "Item" -> new ItemFacet(
@@ -218,7 +234,7 @@ public class Neo4jEntityRepositoryAdapter implements EntityRepository {
         }
         List<String> aliases = e.get("aliases").isNull() ? List.of() : e.get("aliases").asList(Value::asString);
         return new Entity(e.get("id").asString(), e.get("worldId").asString(null), e.get("name").asString(null),
-                aliases, e.get("description").asString(null), facets);
+                aliases, e.get("description").asString(null), facets, statements);
     }
 
     // ----- relationships -----

@@ -28,16 +28,18 @@ public record CreateEntityRequest(
     @Schema(description = "Item archetype details; presence implies this entity is an Item")
     ItemFacetRequest item,
 
-    @Schema(description = "Formal archetype names stored as IS_A statements. Item properties still come from item. Character may also be set with character.",
-            example = "[\"Location\", \"Rule\"]")
-    List<String> archetypes,
+    @Valid
+    @Schema(description = "Archetypes stored as IS_A statements. Each entry is a name such as \"Location\" (always) or {archetype, time, certainty}. "
+            + "The same archetype may appear more than once if the times do not overlap. Item properties still come from item. Character may also be set with character.",
+            example = "[\"Location\", {\"archetype\": \"Rule\", \"time\": {\"start\": {\"tick\": 100}}}]")
+    List<ArchetypeRequest> archetypes,
 
     @Valid
     @Schema(description = "Period archetype details; presence implies this entity is a Period whose ticks other statements can use")
     PeriodFacetRequest period
 ) {
     public CreateEntityRequest(String name, List<String> aliases, String description, Boolean character,
-                               ItemFacetRequest item, List<String> archetypes) {
+                               ItemFacetRequest item, List<ArchetypeRequest> archetypes) {
         this(name, aliases, description, character, item, archetypes, null);
     }
 }

@@ -1,5 +1,8 @@
 package com.bic.burble.ontology.domain.statement;
 
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -25,6 +28,36 @@ public record TimeRange(long start, long end) {
 
     public boolean overlaps(TimeRange other) {
         return start < other.end && other.start < end;
+    }
+
+    /**
+     * The first part of {@code want} that none of {@code have} covers, or
+     * empty when their union covers all of it. Ranges that touch, such as
+     * [0, 10) and [10, 20), cover as one.
+     */
+    public static Optional<TimeRange> firstGap(TimeRange want, Collection<TimeRange> have) {
+        List<TimeRange> sorted = have.stream().sorted(Comparator.comparingLong(TimeRange::start)).toList();
+        long cursor = want.start();
+        for (TimeRange range : sorted) {
+            if (cursor >= want.end()) {
+                break;
+            }
+            if (range.start() > cursor) {
+                return Optional.of(new TimeRange(cursor, Math.min(range.start(), want.end())));
+            }
+            cursor = Math.max(cursor, range.end());
+        }
+        return cursor >= want.end() ? Optional.empty() : Optional.of(new TimeRange(cursor, want.end()));
+    }
+
+    /** Readable form, for example "from tick 10 until tick 20" or "always". */
+    public String describe() {
+        if (start == Long.MIN_VALUE && end == Long.MAX_VALUE) {
+            return "always";
+        }
+        String from = start == Long.MIN_VALUE ? "from the beginning" : "from tick " + start;
+        String until = end == Long.MAX_VALUE ? "onward" : "until tick " + end;
+        return from + " " + until;
     }
 
     public static TimeRange resolve(StatementTime time, Function<String, Optional<PeriodTicks>> periods) {

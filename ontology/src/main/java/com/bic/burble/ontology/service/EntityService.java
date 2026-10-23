@@ -1,6 +1,8 @@
 package com.bic.burble.ontology.service;
 
+import com.bic.burble.ontology.domain.ArchetypeStatement;
 import com.bic.burble.ontology.domain.Entity;
+import com.bic.burble.ontology.domain.entity.ArchetypeRequest;
 import com.bic.burble.ontology.domain.Relationship;
 import com.bic.burble.ontology.domain.entity.CreateEntityRequest;
 import com.bic.burble.ontology.domain.statement.StatementTime;
@@ -97,4 +99,25 @@ public interface EntityService {
 
     /** Entities storing {@code verb} at {@code objectId} at {@code atTick}; null ignores time. */
     List<Entity> findByRelationship(String verb, String objectId, Long atTick);
+
+    /**
+     * IS_A statements on the entity, only those that hold at {@code atTick}
+     * when it is given. Empty when the entity is not in {@code worldId}.
+     */
+    Optional<List<ArchetypeStatement>> findArchetypes(String worldId, String entityId, Long atTick);
+
+    /**
+     * Adds one IS_A statement. The same archetype and time again updates the
+     * certainty. Empty when the entity is not in {@code worldId}.
+     *
+     * @throws com.bic.burble.ontology.domain.statement.OverlappingStatementException
+     *         when the same archetype already holds during part of that time
+     */
+    Optional<ArchetypeStatement> addArchetype(String worldId, String entityId, ArchetypeRequest request);
+
+    /**
+     * Removes the IS_A statement with exactly this archetype and time
+     * (null time is the untimed one). False when there is no such statement.
+     */
+    boolean removeArchetype(String worldId, String entityId, String archetype, StatementTime time);
 }

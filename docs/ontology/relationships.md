@@ -18,9 +18,17 @@ A relationship is allowed when the subject has at least one of the allowed subje
 
 Types with several rows only allow those exact pairs. For example, `PART_OF` connects a Location to a Location or an Organization to an Organization, but not a Location to an Organization.
 
-Archetypes count whenever the entity has them. Time on `IS_A` statements is not considered yet.
-
 A relationship that breaks these rules is rejected with HTTP 400, and the message names the allowed archetypes.
+
+### Archetypes over time
+
+`IS_A` statements have their own time and certainty (see [archetypes](archetypes.md#archetypes-over-time)). The allowed archetype has to hold for the **whole** time of the relationship, on both sides:
+
+- One archetype has to cover the whole range. Several `IS_A` statements for the same archetype count as one when they touch end to end: Character `[0, 10)` and Character `[10, 20)` cover `[5, 15)`. Two different allowed archetypes do not add up; Item until tick 10 and Organization from tick 10 do not cover `[5, 15)` for `OWNED_BY`.
+- A relationship with no time holds always, so it needs an archetype with no time (or ones that together run from the beginning onward).
+- `IS_A` certainty is not checked.
+- If an allowed archetype exists but does not cover the range, the 400 names it and the first part that is not covered, for example: `LOCATED_IN needs the subject <id> to be Character, but it is not Character from tick 30 until tick 40 for the whole relationship time (from tick 20 until tick 40)`.
+- If the entity never has an allowed archetype at all, the message is the one above that lists the allowed archetypes.
 
 | Type | Subject | Object | Cardinality |
 |------|---------|--------|-------------|
@@ -50,4 +58,4 @@ A relationship that breaks these rules is rejected with HTTP 400, and the messag
 
 ## Older data
 
-These rules apply when a relationship is written. Statements that are already stored, including ones that break the table, still load unchanged.
+These rules apply when a relationship is written. Statements that are already stored, including ones that break the table, still load unchanged. An `IS_A` statement with no time holds always, so data written before archetypes had time behaves exactly as before.

@@ -1,5 +1,6 @@
 package com.bic.burble.ontology.domain.statement;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -26,6 +27,7 @@ public record TimeBound(
         return new TimeBound(null, periodId);
     }
 
+    @JsonIgnore
     public boolean isEmpty() {
         return tick == null && (period == null || period.isBlank());
     }
